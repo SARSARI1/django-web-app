@@ -27,6 +27,9 @@ def tables(request):
     # Your logic for this view
     return render(request, 'listings/tables.html')
 
+def dashboard(request):
+    return render(request, 'listings/dashboard.html')
+
 def demandes(request):
     return render(request, 'listings/demandes.html')
     
@@ -196,66 +199,77 @@ def process_files(agents_path, historique_path, demandes_path, date_debut_sejour
     historique_df = pd.read_excel(historique_path)
     agents_df = pd.read_excel(agents_path)
     demandes_df = pd.read_excel(demandes_path)
-    
+
+    # Debug: Print initial shapes of the DataFrames
+    print(f"Initial historique_df shape: {historique_df.shape}")
+    print(f"Initial agents_df shape: {agents_df.shape}")
+    print(f"Initial demandes_df shape: {demandes_df.shape}")
+
     # Filter rows based on date_debut_sejour and date_fin_sejour
     demandes_df = demandes_df[
         (demandes_df['Date debut sejour'] == date_debut_sejour) &
         (demandes_df['Date fin sejour'] == date_fin_sejour)
     ]
+    # Debug: Print shape after filtering by dates
+    print(f"demandes_df shape after date filtering: {demandes_df.shape}")
+
     # Create a new DataFrame 'demandes_traiter' that contains the exact content of the 'demandes' file
     demandes_traiter_df = demandes_df.copy()
-  
+    # Debug: Print shape of demandes_traiter_df after copy
+    print(f"demandes_traiter_df shape after copy: {demandes_traiter_df.shape}")
 
-    # ## Step 4: Filter Rows
-
+    # Step 4: Filter Rows
     # Keep only rows where 'Site' is 'khouribga'
     demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Site'] == 'Khouribga']
-   
+    print(f"demandes_traiter_df shape after filtering by 'Site': {demandes_traiter_df.shape}")
+
     # Keep only rows where 'Nature Periode' is 'Bloquée'
     demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Nature Periode'] == 'Bloquée']
-   
+    print(f"demandes_traiter_df shape after filtering by 'Nature Periode': {demandes_traiter_df.shape}")
 
     # Keep only rows where 'Statut' is 'En attente de traitement'
     demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Statut'] == 'En attente de traitement']
-   
+    print(f"demandes_traiter_df shape after filtering by 'Statut': {demandes_traiter_df.shape}")
 
-    # ## Step 5: Add retraite Column and Calculate Its Values
-
+    # Step 5: Add retraite Column and Calculate Its Values
     from datetime import datetime
 
     # Merge demandes_traiter_df with agents_df to get 'date_embauche', 'sit_fam', and 'NOMBRE_ENF'
-    demandes_traiter_df = demandes_traiter_df.merge(agents_df[['matricule', 'date_embauche', 'sit_fam', 'NOMBRE_ENF','date_debut_retraite']], left_on='Matricule', right_on='matricule', how='left')
-   
+    demandes_traiter_df = demandes_traiter_df.merge(
+        agents_df[['matricule', 'date_embauche', 'sit_fam', 'NOMBRE_ENF', 'date_debut_retraite']],
+        left_on='Matricule', right_on='matricule', how='left'
+    )
+    # Debug: Print shape and columns after merging
+    print(f"demandes_traiter_df shape after merging: {demandes_traiter_df.shape}")
+    print(f"demandes_traiter_df columns after merging: {demandes_traiter_df.columns}")
 
-
-    # Convert 'Date_embauche' to datetime
+    # Convert dates to datetime
     demandes_traiter_df['date_embauche'] = pd.to_datetime(demandes_traiter_df['date_embauche'], format='%d/%m/%Y')
     demandes_traiter_df['Date debut sejour'] = pd.to_datetime(demandes_traiter_df['Date debut sejour'], format='%d/%m/%Y')
-    # Convert 'date_debut_retraite' to datetime if it's not already
-    demandes_traiter_df['date_debut_retraite'] = pd.to_datetime(demandes_traiter_df['date_debut_retraite'],format='%d/%m/%Y')
-    #filtrage expired date_debut_retraite:
-    demandes_traiter_df= demandes_traiter_df[demandes_traiter_df['date_debut_retraite'] > demandes_traiter_df['Date debut sejour']]
-   
+    demandes_traiter_df['date_debut_retraite'] = pd.to_datetime(demandes_traiter_df['date_debut_retraite'], format='%d/%m/%Y')
+    
+    # Debug: Print some values to ensure correct conversion
+    print(demandes_traiter_df[['date_embauche', 'Date debut sejour', 'date_debut_retraite']].head())
 
+    # Filter expired date_debut_retraite
+    demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['date_debut_retraite'] <= demandes_traiter_df['Date debut sejour']]
+    print(f"demandes_traiter_df shape after filtering expired date_debut_retraite: {demandes_traiter_df.shape}")
 
-    # ## Calculate A 
+    if demandes_traiter_df.empty:
+        print("DataFrame is empty after filtering.")
+        return  # Or handle the case as needed
 
-    from datetime import datetime
+    # Calculate A
     from dateutil.relativedelta import relativedelta
-    # Calculate 'A' as the difference between current date and 'Date_embauche' in months
     demandes_traiter_df['A'] = demandes_traiter_df['date_embauche'].apply(lambda x: relativedelta(datetime.now(), x).years * 12 + relativedelta(datetime.now(), x).months)
+    print(f"demandes_traiter_df shape after calculating 'A': {demandes_traiter_df.shape}")
 
-
-    # ## Calculate S 
-
-    # Function to calculate 'S'
-    #if married with no kids S=5 the max is 20
-    # Function to calculate 'S' based on 'sit_fam' and 'NOMBRE_ENF'
+    # Calculate S
     def calculate_S(row):
         sit_fam = row['sit_fam'].strip().lower()
         nbr_enf = row['NOMBRE_ENF']
 
-        if sit_fam not in ['Célibataire']:
+        if sit_fam not in ['célibataire']:
             if nbr_enf <= 3:
                 return 5 + nbr_enf * 5
             else:
@@ -263,12 +277,10 @@ def process_files(agents_path, historique_path, demandes_path, date_debut_sejour
         else:
             return 0  # Default to 0 for unknown cases
 
-    # Calculate 'S' for each row in demandes_traiter_df
     demandes_traiter_df['S'] = demandes_traiter_df.apply(calculate_S, axis=1)
+    print(f"demandes_traiter_df shape after calculating 'S': {demandes_traiter_df.shape}")
 
-    # ## Calculate D
-
-    # Create a function to calculate 'D' based on conditions
+    # Calculate D
     def calculate_D(row, historique_df):
         matricule = row['Matricule']
         matricule_rows = historique_df[historique_df['Matricule'] == matricule]
@@ -289,50 +301,17 @@ def process_files(agents_path, historique_path, demandes_path, date_debut_sejour
         
         return total_D
 
-    # Calculate 'D' for each row in demandes_traiter_df using the calculate_D function
     demandes_traiter_df['D'] = demandes_traiter_df.apply(calculate_D, axis=1, historique_df=historique_df)
-
-    # Fill NaN values with 0 in case there are Matricules in demandes_traiter_df that didn't occur in historique_df
     demandes_traiter_df['D'] = demandes_traiter_df['D'].fillna(0)
+    print(f"demandes_traiter_df shape after calculating 'D': {demandes_traiter_df.shape}")
 
-
-
-
-    # ## Calculate P 
-
-    # Calculate 'P' based on the formula P = 2 * (A + S) - D
+    # Calculate P
     demandes_traiter_df['P'] = 2 * (demandes_traiter_df['A'] + demandes_traiter_df['S']) - demandes_traiter_df['D']
+    print(f"demandes_traiter_df shape after calculating 'P': {demandes_traiter_df.shape}")
 
-
-    # ## Sorting based on 'P'
-
-    # Sort demandes_traiter_df based on the 'P' column in descending order
-    demandes_traiter_df = demandes_traiter_df.sort_values(by=['P', 'A', 'S','Date de la demande'], ascending=[False, False, False,False])
-    print(demandes_traiter_df.columns)
-
-    
-    # Delete old records and save new records to the database
-    DemandesTraiter.objects.all().delete()
-    # Prepare data for saving into the database
-    for index, row in demandes_traiter_df.iterrows():
-        DemandesTraiter.objects.create(
-            numero_demande=row['N° Demande'],
-            ville=row['Ville'],
-            nom_agent=row['Nom agent'],
-            prenom_agent=row['Prenom agent'],
-            matricule=row['Matricule'],
-            date_debut_sejour=row['Date debut sejour'],
-            date_fin_sejour=row['Date fin sejour'],
-            type_de_vue=row['Type de vue'],
-            A=row['A'],
-            D=row['D'],
-            S=row['S'],
-            P=row['P'],
-        )
-
-
- 
-
+    # Sorting based on 'P'
+    demandes_traiter_df = demandes_traiter_df.sort_values(by=['P', 'A', 'S', 'Date de la demande'], ascending=[False, False, False, False])
+    print(f"demandes_traiter_df shape after sorting: {demandes_traiter_df.shape}")
 
 
 from io import BytesIO
@@ -496,40 +475,424 @@ def upload_excel_historique(request):
             return redirect('historique')
 
         excel_file = request.FILES['excel_file']
-        df = pd.read_excel(excel_file)
+        try:
+            df = pd.read_excel(excel_file)
+        except Exception as e:
+            messages.error(request, f"Erreur lors de la lecture du fichier Excel: {e}")
+            return redirect('historique')
 
         # Clean the table before uploading new data
         Historique.objects.all().delete()
 
         # Validate columns
-        required_columns = ['ville', 'nom_agent', 'prenom_agent', 'matricule',
-                            'date_demande', 'date_debut_sejour', 'date_fin_sejour',
-                            'type_de_vue', 'nombre_nuites']
-        
-       
+        required_columns = ['Site', 'Nom agent', 'Prenom agent', 'Matricule',
+                            'Date de la demande', 'Date debut sejour', 'Date fin sejour',
+                            'Type de vue', 'Nombre de nuites']
+
+        if not all(column in df.columns for column in required_columns):
+            messages.error(request, "Le fichier Excel n'a pas les colonnes requises.")
+            return redirect('historique')
+
+        # Track rows with missing values in required columns
+        rows_with_missing_values = df[df[required_columns].isnull().any(axis=1)]
+        df = df.dropna(subset=required_columns)  # Drop rows with missing values in required columns
 
         # Insert data into the database
+        inserted_rows = 0
         for _, row in df.iterrows():
-            Historique.objects.create(
-                ville=row['ville'],
-                nom_agent=row['nom_agent'],
-                prenom_agent=row['prenom_agent'],
-                matricule=row['matricule'],
-                date_demande=row['date_demande'],
-                date_debut_sejour=row['date_debut_sejour'],
-                date_fin_sejour=row['date_fin_sejour'],
-                type_de_vue=row['type_de_vue'],
-                nombre_nuites=row['nombre_nuites'],
-            )
-        
-        messages.success(request, "Fichier Excel traité avec succès.")
+            try:
+                Historique.objects.create(
+                    ville=row['Site'],
+                    nom_agent=row['Nom agent'],
+                    prenom_agent=row['Prenom agent'],
+                    matricule=row['Matricule'],  # Ensure matricule is an integer
+                    date_demande=row['Date de la demande'],
+                    date_debut_sejour=row['Date debut sejour'],
+                    date_fin_sejour=row['Date fin sejour'],
+                    type_de_vue=row['Type de vue'],
+                    nombre_nuites=row['Nombre de nuites'],
+                )
+                inserted_rows += 1
+            except Exception as e:
+                logger.error(f"Erreur lors de l'insertion de la ligne {row}: {e}")
+
+        if not rows_with_missing_values.empty:
+            messages.warning(request, "Certaines lignes avaient des valeurs manquantes et n'ont pas été insérées.", extra_tags='missing-values')
+        else:
+            messages.success(request, f"Fichier Excel traité avec succès. {inserted_rows} lignes insérées.")
 
     return redirect('historique')
-
 
 def delete_historique(request):
     if request.method == 'POST':
         Historique.objects.all().delete()
         messages.success(request, "Toutes les données ont été supprimées.")
-        
     return redirect('historique')
+
+# login views
+
+from django.shortcuts import render, redirect
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
+from .forms import SignUpForm, ProfileForm
+from .models import Profile
+
+def signup_view(request):
+    if request.method == 'POST':
+        form = SignUpForm(request, data=request.POST)
+        if form.is_valid():
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            user = authenticate(username=username, password=password)
+            if user is not None:
+                login(request, user)
+                return redirect('profile')
+    else:
+        form = SignUpForm()
+    return render(request, 'listings/signup.html', {'form': form})
+
+@login_required
+def profile(request):
+    try:
+        profile = request.user.profile
+    except Profile.DoesNotExist:
+        # Handle the case where the Profile does not exist
+        profile = None
+        # Optionally, you could create a profile for the user here
+        # profile = Profile.objects.create(user=request.user)
+    
+    context = {
+        'profile': profile,
+    }
+    return render(request, 'listings/profile.html', context)
+
+
+
+from django.shortcuts import get_object_or_404, render, redirect
+from .forms import Agent, AgentForm, Demande, DemandeForm
+from django.db.models import Count
+from django.http import HttpResponseBadRequest
+import pandas as pd
+import json
+
+def statistiques(request):
+    # Récupérer les statistiques existantes
+    total_agents = Agent.objects.count()
+    total_demandes = Demande.objects.count()
+    demandes_par_vue = list(Demande.objects.values('type_vue').annotate(count=Count('type_vue')))
+    nbr_vue= Demande.objects.values('type_vue').count()
+
+    context = {
+        'total_agents': total_agents,
+        'total_demandes': total_demandes,
+        'demandes_par_vue': json.dumps(demandes_par_vue),
+         'nbr_vue':nbr_vue,
+    }
+
+    return render(request, 'listings/dashboard.html', context)
+
+def AgentsAffichage(request):
+    if request.method == 'POST':
+        form = AgentForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('AgentsAffichage')
+    else:
+        form = AgentForm()
+
+    agents = Agent.objects.all()
+    return render(request, 'listings/agentsCrud.html', {'data': agents, 'form': form})
+
+
+def edit_agent(request, agent_id):
+    agent = get_object_or_404(Agent, pk=agent_id)
+    if request.method == 'POST':
+        form = AgentForm(request.POST, instance=agent)
+        if form.is_valid():
+            form.save()
+            return redirect('AgentsAffichage')
+    else:
+        form = AgentForm(instance=agent)
+    return render(request,'listings/edit_agent.html', {'form': form})
+
+# View to delete an existing agent
+def delete_agent(request, agent_id):
+    agent = get_object_or_404(Agent, pk=agent_id)
+    agent.delete()
+    messages.success(request, "agent have been deleted successfully!")
+    return redirect('AgentsAffichage')
+
+from django.contrib import messages
+from django.shortcuts import redirect
+import pandas as pd
+from .models import Agent
+
+def upload_excel_agents(request):
+    if request.method == 'POST':
+        if 'excelFile' not in request.FILES:
+            messages.error(request, "No file uploaded.")
+            return redirect('AgentsAffichage')
+
+        excel_file = request.FILES['excelFile']
+        
+        if not excel_file.name.endswith('.xlsx'):
+            messages.error(request, "Invalid file format. Please upload an .xlsx file.")
+            return redirect('AgentsAffichage')
+
+        try:
+            df = pd.read_excel(excel_file)
+        except Exception as e:
+            messages.error(request, f"Error reading the Excel file: {str(e)}")
+            return redirect('AgentsAffichage')
+
+        expected_columns = ['matricule', 'nom_prenom', 'date_naissance', 'sit_fam', 'date_embauche', 'nombre_enf']
+        df.columns = df.columns.str.lower()
+        if not all(col in df.columns for col in expected_columns):
+            messages.error(request, "Invalid Excel file format. Expected columns are missing.")
+            return redirect('AgentsAffichage')
+
+        for index, row in df.iterrows():
+            if pd.isnull(row['matricule']) or pd.isnull(row['nom_prenom']) or pd.isnull(row['date_naissance']):
+                messages.error(request, f"Missing required data in row {index + 1}.")
+                return redirect('AgentsAffichage')
+            try:
+                agent = Agent(
+                    matricule=row['matricule'],
+                    nom_prenom=row['nom_prenom'],
+                    date_naissance=row['date_naissance'],
+                    sit_fam=row['sit_fam'],
+                    date_embauche=row['date_embauche'],
+                    nombre_enf=row['nombre_enf']
+                )
+                agent.save()
+            except Exception as e:
+                messages.error(request, f"Error saving data: {str(e)}")
+                return redirect('AgentsAffichage')
+
+        messages.success(request, "File uploaded and processed successfully!")
+        return redirect('AgentsAffichage')
+    else:
+        return redirect('AgentsAffichage')
+
+def delete_all_agents(request):
+    if request.method == 'POST':
+        Agent.objects.all().delete()
+        messages.success(request, "All agents have been deleted successfully!")
+        return redirect('AgentsAffichage')
+
+    return redirect('AgentsAffichage')
+
+
+
+    ###################Demande View####################################
+
+def statistiques(request):
+    # Récupérer les statistiques existantes
+    total_demandes = Demande.objects.count()
+    demandes_par_vue = list(Demande.objects.values('type_vue').annotate(count=Count('type_vue')))
+    nbr_vue = Demande.objects.values('type_vue').count()
+
+    context = {
+        'total_demandes': total_demandes,
+        'demandes_par_vue': json.dumps(demandes_par_vue),
+        'nbr_vue': nbr_vue,
+    }
+
+    return render(request, 'listings/dashboard.html', context)
+
+def demandes_affichage(request):
+    if request.method == 'POST':
+        form = DemandeForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('demandes_affichage')
+    else:
+        form = DemandeForm()
+
+    demandes = Demande.objects.all()
+    return render(request, 'listings/demandesCrud.html', {'data': demandes, 'form': form})
+
+def edit_demande(request, demande_id):
+    demande = get_object_or_404(Demande, pk=demande_id)
+    if request.method == 'POST':
+        form = DemandeForm(request.POST, instance=demande)
+        if form.is_valid():
+            form.save()
+            return redirect('demandes_affichage')
+    else:
+        form = DemandeForm(instance=demande)
+    return render(request, 'listings/edit_demande.html', {'form': form})
+
+def delete_demande(request, demande_id):
+    demande = get_object_or_404(Demande, pk=demande_id)
+    demande.delete()
+    messages.success(request, "La demande a été supprimée avec succès !")
+    return redirect('demandes_affichage')
+
+def search_demande(request):
+    query = request.GET.get('q', '')
+    demandes = Demande.objects.filter(
+        Q(site__icontains=query) |
+        Q(numero_demande__icontains=query) |
+        Q(matricule__icontains=query) |
+        Q(nom_agent__icontains=query) |
+        Q(prenom_agent__icontains=query) |
+        Q(type_vue__icontains=query) |
+        Q(nature_periode__icontains=query) |
+        Q(saison__icontains=query)
+    ).values('site', 'numero_demande', 'matricule', 'nom_agent', 'prenom_agent', 'date_demande', 'date_debut_sejour', 'date_fin_sejour', 'type_vue', 'nature_periode', 'saison')
+
+    return render(request, 'listings/search_results.html', {'data': demandes})
+import pandas as pd
+from django.shortcuts import redirect
+from django.contrib import messages
+from .models import Demande
+
+def upload_excelDemandes(request):
+    if request.method == 'POST':
+        if 'excelFile' not in request.FILES:
+            messages.error(request, "Aucun fichier téléchargé.")
+            return redirect('demandes_affichage')
+
+        excel_file = request.FILES['excelFile']
+        
+        if not excel_file.name.endswith('.xlsx'):
+            messages.error(request, "Format de fichier invalide. Veuillez télécharger un fichier .xlsx.")
+            return redirect('demandes_affichage')
+
+        try:
+            df = pd.read_excel(excel_file)
+        except Exception as e:
+            messages.error(request, f"Erreur lors de la lecture du fichier Excel : {str(e)}")
+            return redirect('demandes_affichage')
+
+        # Nettoyer les noms de colonnes : enlever les espaces, mettre en minuscules et remplacer les espaces par des underscores
+        df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
+
+        # Définir les colonnes attendues après nettoyage
+        expected_columns = [
+            'site', 
+            'n°_demande', 
+            'agence', 
+            'nom_établissement_hoteliers', 
+            'hotel_-_club_-_residence', 
+            'ville', 
+            'nom_agent', 
+            'prenom_agent', 
+            'matricule', 
+            'date_de_la_demande', 
+            'date_debut_sejour', 
+            'date_fin_sejour', 
+            'nombre_total_d\'enfants', 
+            'nombre_d\'accompagnateurs', 
+            'nombre_d\'enfants_partageant_la_chambre_des_parents', 
+            'total_membres_de_famille', 
+            'nombre_de_nuites', 
+            'nombre_de_chambre_double', 
+            'nombre_de_chambre_single', 
+            'type_de_vue', 
+            'formule', 
+            'montant_factures', 
+            'quote_part', 
+            'année_de_facturation', 
+            'mois_de_facturation', 
+            'statut', 
+            'date_correspondant_au_statut', 
+            'date_demande_voucher', 
+            'date_envoi_du_voucher', 
+            'nature_periode', 
+            'saison', 
+            'référence_paiement', 
+            'nbr_etoiles'
+        ]
+
+        # Identifier les colonnes manquantes
+        missing_columns = [col for col in expected_columns if col not in df.columns]
+
+        if missing_columns:
+            messages.error(request, f"Format de fichier Excel invalide. Certaines colonnes attendues sont manquantes : {', '.join(missing_columns)}")
+            return redirect('demandes_affichage')
+
+        for index, row in df.iterrows():
+            if pd.isnull(row['site']) or pd.isnull(row['matricule']):
+                messages.error(request, f"Données manquantes à la ligne {index + 1}.")
+                return redirect('demandes_affichage')
+
+            try:
+                demande = Demande(
+                    site=row['site'],
+                    numero_demande=row['n°_demande'],
+                    agence=row['agence'],
+                    nom_etablissement_hoteliers=row['nom_établissement_hoteliers'],
+                    hotel_club_residence=row['hotel_-_club_-_residence'],
+                    ville=row['ville'],
+                    nom_agent=row['nom_agent'],
+                    prenom_agent=row['prenom_agent'],
+                    matricule=row['matricule'],
+                   
+                    date_demande=row['date_de_la_demande'],
+                    date_fin_sejour=row['date_fin_sejour'],
+                    nombre_total_enfants=row['nombre_total_d\'enfants'],
+                    nombre_accompagnateurs=row['nombre_d\'accompagnateurs'],
+                    nombre_enfants_chambre_parents=row['nombre_d\'enfants_partageant_la_chambre_des_parents'],
+                    total_membres_famille=row['total_membres_de_famille'],
+                    nombre_nuites=row['nombre_de_nuites'],
+                    nombre_chambre_double=row['nombre_de_chambre_double'],
+                    nombre_chambre_single=row['nombre_de_chambre_single'],
+                    type_vue=row['type_de_vue'],
+                    formule=row['formule'],
+                    montant_factures=row['montant_factures'],
+                    quote_part=row['quote_part'],
+                    annee_facturation=row['année_de_facturation'],
+                    mois_facturation=row['mois_de_facturation'],
+                    statut=row['statut'],
+                    date_statut=row['date_correspondant_au_statut'],
+                    date_demande_voucher=row['date_demande_voucher'],
+                    date_envoi_voucher=row['date_envoi_du_voucher'],
+                    nature_periode=row['nature_periode'],
+                    saison=row['saison'],
+                    reference_paiement=row['référence_paiement'],
+                    nbr_etoiles=row['nbr_etoiles']
+                )
+                demande.save()
+            except Exception as e:
+                messages.error(request, f"Erreur lors de l'enregistrement des données : {str(e)}")
+                return redirect('demandes_affichage')
+
+        messages.success(request, "Fichier téléchargé et traité avec succès !")
+        return redirect('demandes_affichage')
+    else:
+        return redirect('demandes_affichage')
+
+def delete_all_demandes(request):
+    if request.method == 'POST':
+        Demande.objects.all().delete()
+        messages.success(request, "Toutes les demandes ont été supprimées avec succès !")
+        return redirect('demandes_affichage')
+
+    return redirect('demandes_affichage')
+
+
+
+import pandas as pd
+from django.http import HttpResponse
+from .models import RejectedDemandesRetrait
+
+def download_rejected_agents(request):
+    # Query rejected demands from the database
+    rejected_agents = RejectedDemandesRetrait.objects.all()
+
+    # Create a DataFrame from the queried data
+    df = pd.DataFrame(list(rejected_agents.values(
+        'nom_agent', 'prenom_agent', 'matricule'
+    )))
+
+    # Create an HTTP response with CSV content
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="rejected_agents.csv"'
+
+    # Convert DataFrame to CSV and write to response
+    df.to_csv(path_or_buf=response, index=False)
+
+    return response
+

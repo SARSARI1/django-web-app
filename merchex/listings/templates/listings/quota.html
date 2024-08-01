@@ -35,7 +35,7 @@
     <div class="collapse navbar-collapse  w-auto  max-height-vh-100 h-100" id="sidenav-collapse-main">
       <ul class="navbar-nav">
         <li class="nav-item">
-          <a class="nav-link  " href="../pages/dashboard.html">
+          <a class="nav-link  " href="{% url 'dashboard' %}">
             <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
               <svg width="12px" height="12px" viewBox="0 0 45 40" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
                 <title>shop </title>
@@ -75,7 +75,7 @@
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link  " href="{% url 'agents' %}">
+          <a class="nav-link  " href="{% url 'AgentsAffichage' %}">
             <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
               <svg width="12px" height="12px" viewBox="0 0 43 36" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
                 <title>credit-card</title>
@@ -95,7 +95,7 @@
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link  " href="{% url 'demandes' %}">
+          <a class="nav-link  " href="{% url 'demandes_affichage' %}">
             <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
               <svg width="12px" height="12px" viewBox="0 0 42 42" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
                 <title>box-3d-50</title>
@@ -162,12 +162,11 @@
 
 
 
-
         <li class="nav-item mt-3">
           <h6 class="ps-4 ms-2 text-uppercase text-xs font-weight-bolder opacity-6">Account pages</h6>
         </li>
         <li class="nav-item">
-          <a class="nav-link  " href="../pages/profile.html">
+          <a class="nav-link  " href="{% url 'profile' %}">
             <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
               <svg width="12px" height="12px" viewBox="0 0 46 42" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
                 <title>customer-support</title>
@@ -187,28 +186,9 @@
             <span class="nav-link-text ms-1">Profile</span>
           </a>
         </li>
+    
         <li class="nav-item">
-          <a class="nav-link  " href="../pages/sign-in.html">
-            <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
-              <svg width="12px" height="12px" viewBox="0 0 40 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-                <title>document</title>
-                <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-                  <g transform="translate(-1870.000000, -591.000000)" fill="#FFFFFF" fill-rule="nonzero">
-                    <g transform="translate(1716.000000, 291.000000)">
-                      <g transform="translate(154.000000, 300.000000)">
-                        <path class="color-background opacity-6" d="M40,40 L36.3636364,40 L36.3636364,3.63636364 L5.45454545,3.63636364 L5.45454545,0 L38.1818182,0 C39.1854545,0 40,0.814545455 40,1.81818182 L40,40 Z"></path>
-                        <path class="color-background" d="M30.9090909,7.27272727 L1.81818182,7.27272727 C0.814545455,7.27272727 0,8.08727273 0,9.09090909 L0,41.8181818 C0,42.8218182 0.814545455,43.6363636 1.81818182,43.6363636 L30.9090909,43.6363636 C31.9127273,43.6363636 32.7272727,42.8218182 32.7272727,41.8181818 L32.7272727,9.09090909 C32.7272727,8.08727273 31.9127273,7.27272727 30.9090909,7.27272727 Z M18.1818182,34.5454545 L7.27272727,34.5454545 L7.27272727,30.9090909 L18.1818182,30.9090909 L18.1818182,34.5454545 Z M25.4545455,27.2727273 L7.27272727,27.2727273 L7.27272727,23.6363636 L25.4545455,23.6363636 L25.4545455,27.2727273 Z M25.4545455,20 L7.27272727,20 L7.27272727,16.3636364 L25.4545455,16.3636364 L25.4545455,20 Z"></path>
-                      </g>
-                    </g>
-                  </g>
-                </g>
-              </svg>
-            </div>
-            <span class="nav-link-text ms-1">Sign In</span>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link  " href="../pages/sign-up.html">
+          <a class="nav-link  " href="{% url 'signup' %}">
             <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
               <svg width="12px" height="20px" viewBox="0 0 40 40" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
                 <title>spaceship</title>
@@ -260,7 +240,7 @@
                 <div class="card-header pb-0">
                    
                     <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addModal">
-                      <i class="fas fa-plus"></i> Add New Quota
+                      <i class="fas fa-plus"></i> Ajouter un nouveau quota
                     </button>
                 </div>
 
@@ -275,7 +255,7 @@
                                 <tr>
                                     <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Ville</th>
                                     <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Type de vue</th>
-                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Quota Value</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Valeur de Quota</th>
                                     <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Actions</th>
                                 </tr>
                             </thead>
@@ -298,11 +278,11 @@
                                     <td class="align-middle text-center">
                                         <!-- Edit Button -->
                                         <button type="button" class="btn btn-warning text-white" data-bs-toggle="modal" data-bs-target="#editModal" data-ville="{{ quota.ville }}" data-type-de-vue="{{ quota.type_de_vue }}" data-quota-value="{{ quota.quota_value }}">
-                                            <i class="fas fa-edit"></i> Edit
+                                            <i class="fas fa-edit"></i> Modifier
                                         </button>
                                         <!-- Delete Button -->
                                         <button type="button" class="btn btn-danger text-white" data-bs-toggle="modal" data-bs-target="#deleteModal" data-ville="{{ quota.ville }}" data-type-de-vue="{{ quota.type_de_vue }}">
-                                            <i class="fas fa-trash"></i> Delete
+                                            <i class="fas fa-trash"></i> Supprimer
                                         </button>
                                     </td>
                                 </tr>
@@ -311,40 +291,43 @@
                         </table>
                     </div>
                 </div>
-                <!-- Add Modal -->
-                <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
-                  <div class="modal-dialog">
-                      <div class="modal-content">
-                          <div class="modal-header">
-                              <h5 class="modal-title" id="addModalLabel">Add New Quota</h5>
-                              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                          </div>
-                          <div class="modal-body">
-                              <form method="post" action="{% url 'add_quota' %}">
-                                  {% csrf_token %}
-                                  <div class="mb-3">
-                                      <label for="addVille" class="form-label">Ville</label>
-                                      <input type="text" class="form-control" id="addVille" name="ville" required>
-                                  </div>
-                                  <div class="mb-3">
-                                    <label for="addTypeDeVue" class="form-label">Type de Vue</label>
-                                    <select class="form-select" id="addTypeDeVue" name="type_de_vue" required>
-                                        {% for type in type_de_vue_list %}
-                                        <option value="{{ type }}">{{ type }}</option>
-                                        {% endfor %}
-                                    </select>
-                                  </div>
-                                
-                                  <div class="mb-3">
-                                      <label for="addQuotaValue" class="form-label">Quota Value</label>
-                                      <input type="number" class="form-control" id="addQuotaValue" name="quota_value" required>
-                                  </div>
-                                  <button type="submit" class="btn btn-primary">Add Quota</button>
-                              </form>
-                          </div>
-                      </div>
-                  </div>
-              </div>
+<!-- Add Modal -->
+<div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addModalLabel">Add New Quota</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form method="post" action="{% url 'add_quota' %}">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="addVille" class="form-label">Ville</label>
+            <input type="text" class="form-control" id="addVille" name="ville" required>
+          </div>
+          <div class="mb-3">
+            <label for="addTypeDeVue" class="form-label">Type de Vue</label>
+            <select class="form-select" id="addTypeDeVue" name="type_de_vue" required>
+              <option value="RESIDENCE DE 3 CHAMBRES + SALON (8 personnes)">RESIDENCE DE 3 CHAMBRES + SALON (8 personnes)</option>
+              <option value="RESIDENCE DE 2 CHAMBRES + SALON (6 personnes)">RESIDENCE DE 2 CHAMBRES + SALON (6 personnes)</option>
+              <option value="RESIDENCE DE 3 CHAMBRES + 2 SALON (8 personnes)">RESIDENCE DE 3 CHAMBRES + 2 SALON (8 personnes)</option>
+              <option value="RESIDENCE DE 1 CHAMBRE + SALON (4 personnes)">RESIDENCE DE 1 CHAMBRE + SALON (4 personnes)</option>
+              <option value="RESIDENCE DE 2 CHAMBRES + 1 SALON (6 personnes)">RESIDENCE DE 2 CHAMBRES + 1 SALON (6 personnes)</option>
+              <!-- Add other unique values as needed -->
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="addQuotaValue" class="form-label">Quota Value</label>
+            <input type="number" class="form-control" id="addQuotaValue" name="quota_value" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Add Quota</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
                 <!-- Edit Modal -->
                 <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
                     <div class="modal-dialog">
