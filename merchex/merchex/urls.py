@@ -42,7 +42,8 @@ urlpatterns = [
 
     path('delete-all-demandes-traiter/', views.delete_all_demandes_traiter, name='delete_all_demandes_traiter'),
     path('delete-all-demandes-rejetees/', views.delete_all_demandes_rejetees, name='delete_all_demandes_rejetees'),
-    
+    path('download-pdf-demandes-traiter/', views.download_pdf_demandes_traiter, name='download_pdf_demandes_traiter'),
+    path('download-pdf-rejected-demandes/', views.download_pdf_rejected_demandes, name='download_pdf_rejected_demandes'),
 
 
     

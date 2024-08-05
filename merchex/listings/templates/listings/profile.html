@@ -231,24 +231,24 @@
     <main class="main-content position-relative border-radius-lg">
         <div class="container-fluid py-4">
           <!-- Page Content -->
-            <!-- Display messages -->
+            <!-- Message Alerts -->
+          <div>
             {% if messages %}
-            <div class="alert-container">
                 {% for message in messages %}
-                    {% if "missing-values" in message.tags %}
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
+                    {% if message.tags == "error" %}
+                        <div class="alert alert-danger alert-dismissible fade show mt-2" role="alert">
+                    {% elif message.tags == "success" %}
+                        <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
                     {% else %}
-                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
+                        <div class="alert alert-info alert-dismissible fade show mt-2" role="alert">
                     {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
                 {% endfor %}
-            </div>
             {% endif %}
+          </div>
+          
           <div class="row">
             <div class="col-md-6">
               <div class="card">

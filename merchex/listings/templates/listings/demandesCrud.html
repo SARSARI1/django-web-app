@@ -250,110 +250,99 @@
             display: none;
         }
     </style>
-
-<main>
-    <div class="container my-4">
-        <div class="form-container">
-            <div>
-                {% if messages %}
-                    {% for message in messages %}
-                        {% if message.tags == "error" %}
-                            <div class="alert alert-danger alert-dismissible fade show mt-2" role="alert">
-                        {% elif message.tags == "success" %}
-                            <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
-                        {% else %}
-                            <div class="alert alert-info alert-dismissible fade show mt-2" role="alert">
-                        {% endif %}
-                        {{ message }}
-                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+<main class="main-content position-relative max-height-vh-100 h-100 mt-1 border-radius-lg">
+  <div class="container my-4">
+      <div class="form-container">
+         <!-- Message Alerts -->
+          <div>
+            {% if messages %}
+                {% for message in messages %}
+                    {% if message.tags == "error" %}
+                        <div class="alert alert-danger alert-dismissible fade show mt-2" role="alert">
+                    {% elif message.tags == "success" %}
+                        <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
+                    {% else %}
+                        <div class="alert alert-info alert-dismissible fade show mt-2" role="alert">
+                    {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 {% endfor %}
-                {% endif %}
-            </div>
-            <h2>Liste des Demandes</h2>
-            <div class="mb-3">
-                <!-- Button for adding a demande via form -->
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDemandeModal">
-                    Ajouter une nouvelle demande
-                </button>
-            
-                <!-- Button for uploading demandes via Excel -->
-                <!-- Button to trigger the upload modal -->
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadExcelModal">
+            {% endif %}
+          </div>
+          
+          <h2>Liste des Demandes</h2>
+          <div class="mb-3">
+              <!-- Buttons for actions -->
+              <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDemandeModal">
+                  Ajouter une nouvelle demande
+              </button>
+              <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadExcelModal">
                   Téléverser un fichier Excel
-                </button>
-
-            
-                <!-- Button for deleting all demandes -->
-                <!-- Button to trigger the modal -->
-                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllDemandeModal">
+              </button>
+              <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllDemandeModal">
                   Supprimer toutes les demandes
-                </button>
+              </button>
+          </div>
+          
+          <!-- Search Input -->
+          <div class="container mt-4">
+              <input type="text" id="searchInput" class="form-control mb-3" placeholder="Recherche...">
+          </div>
 
-            </div>
-            
-            <!-- Search Input -->
-    <div class="container mt-4">
-      <input type="text" id="searchInput" class="form-control mb-3" placeholder="Search...">
-  </div>
-
-  <!-- Table -->
-  <div class="container table-container">
-    <table class="table">
-      <thead>
-          <tr>
-              <th>Numéro de la Demande</th> <!-- New Column for Request Number -->
-              <th>Ville</th>
-              <th>Nom Agent</th>
-              <th>Prénom Agent</th>
-              <th>Matricule</th>
-              <th>Date de la demande</th>
-              <th>Date début séjour</th>
-              <th>Date fin séjour</th>
-              <th>Type de vue</th>
-              <th>Nombre de nuitées</th>
-              <th>Statut</th>
-              <th>Nature Période</th>
-              <th>Site</th>
-              <th>Actions</th>
-          </tr>
-      </thead>
-      <tbody id="tableBody">
-          {% for demande in demandes %}
-          <tr>
-              <td>{{ demande.numero_demande }}</td> <!-- Display Request Number -->
-              <td>{{ demande.ville }}</td>
-              <td>{{ demande.nom_agent }}</td>
-              <td>{{ demande.prenom_agent }}</td>
-              <td>{{ demande.matricule }}</td>
-              <td>{{ demande.date_demande }}</td>
-              <td>{{ demande.date_debut_sejour }}</td>
-              <td>{{ demande.date_fin_sejour }}</td>
-              <td>{{ demande.type_de_vue }}</td>
-              <td>{{ demande.nombre_nuites }}</td>
-              <td>{{ demande.statut }}</td>
-              <td>{{ demande.nature_periode }}</td>
-              <td>{{ demande.site }}</td>
-              <td>
-                  <!-- Button to open modal -->
-                  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editDemandeModal" data-demande-id="{{ demande.id }}">
-                      Éditer
-                  </button>
-  
-                  <button type="button" class="btn btn-danger" 
-                  data-bs-toggle="modal" 
-                  data-bs-target="#deleteDemandeModal" 
-                  data-demande-id="{{ demande.id }}">
-                  Supprimer
-                  </button>
-              </td>
-          </tr>
-          {% endfor %}
-      </tbody>
-  </table>
-  
+          <!-- Table -->
+          <div class="table-container">
+              <div class="table-responsive p-0">
+                  <table class="table align-items-center mb-0">
+                      <thead>
+                          <tr>
+                              <th>Numéro de la Demande</th>
+                              <th>Ville</th>
+                              <th>Nom Agent</th>
+                              <th>Prénom Agent</th>
+                              <th>Matricule</th>
+                              <th>Date de la demande</th>
+                              <th>Date début séjour</th>
+                              <th>Date fin séjour</th>
+                              <th>Type de vue</th>
+                              <th>Nombre de nuitées</th>
+                              <th>Statut</th>
+                              <th>Nature Période</th>
+                              <th>Site</th>
+                              <th>Actions</th>
+                          </tr>
+                      </thead>
+                      <tbody id="tableBody">
+                          {% for demande in demandes %}
+                          <tr>
+                              <td>{{ demande.numero_demande }}</td>
+                              <td>{{ demande.ville }}</td>
+                              <td>{{ demande.nom_agent }}</td>
+                              <td>{{ demande.prenom_agent }}</td>
+                              <td>{{ demande.matricule }}</td>
+                              <td>{{ demande.date_demande }}</td>
+                              <td>{{ demande.date_debut_sejour }}</td>
+                              <td>{{ demande.date_fin_sejour }}</td>
+                              <td>{{ demande.type_de_vue }}</td>
+                              <td>{{ demande.nombre_nuites }}</td>
+                              <td>{{ demande.statut }}</td>
+                              <td>{{ demande.nature_periode }}</td>
+                              <td>{{ demande.site }}</td>
+                              <td>
+                                  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editDemandeModal" data-demande-id="{{ demande.id }}">
+                                      Éditer
+                                  </button>
+                                  <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteDemandeModal" data-demande-id="{{ demande.id }}">
+                                      Supprimer
+                                  </button>
+                              </td>
+                          </tr>
+                          {% endfor %}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      </div>
   </div>
 
   <!-- JavaScript for Search -->
@@ -544,23 +533,8 @@
                                     <!-- Add other unique values as needed -->
                                 </select>
                             </div>
-                            <div class="mb-3">
-                                <label for="editNombreNuites" class="form-label">Nombre de Nuitées</label>
-                                <input type="number" class="form-control" id="editNombreNuites" name="nombre_nuites" required>
-                            </div>
-                            <!-- New Fields -->
-                            <div class="mb-3">
-                                <label for="editStatut" class="form-label">Statut</label>
-                                <input type="text" class="form-control" id="editStatut" name="statut">
-                            </div>
-                            <div class="mb-3">
-                                <label for="editNaturePeriode" class="form-label">Nature Période</label>
-                                <input type="text" class="form-control" id="editNaturePeriode" name="nature_periode">
-                            </div>
-                            <div class="mb-3">
-                                <label for="editSite" class="form-label">Site</label>
-                                <input type="text" class="form-control" id="editSite" name="site">
-                            </div>
+                           
+                          
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>

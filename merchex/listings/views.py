@@ -537,7 +537,7 @@ def process_files(request):
             demandes_traiter_df = demandes_traiter_df.sort_values(by=['P', 'A', 'S', 'Date de la demande'], ascending=[False, False, False, False])
 
             # Save the DataFrame to the database
-            save_to_database(demandes_traiter_df)
+            save_to_database(demandes_traiter_df,request)
             messages.success(request, "Le traitement des fichiers a été effectué avec succès.")
         except Exception as e:
             messages.error(request, f"Une erreur est survenue : {str(e)}")
@@ -1100,11 +1100,13 @@ def edit_demande(request, demande_id):
             return redirect('demande_list')
         else:
             messages.error(request, 'Erreur lors de la modification de la demande. Veuillez vérifier les champs.')
-            print(form.errors)  # Debug: Print form errors to console
+            print("Form errors:", form.errors)  # Debug: Print form errors to console
     else:
         form = DemandeForm(instance=demande)
-        
-    return render(request, 'listings/demandesCrud.html', {'form': form})
+    
+    print("Form data:", form.initial)  # Debug: Print initial form data
+    return redirect('demande_list')
+
 
 # View for deleting a demande
 def delete_demande(request, demande_id):
@@ -1176,26 +1178,156 @@ def download_rejected_agents(request):
     return response
 
 
+# listings/views.py
 from django.shortcuts import redirect
-from django.views.decorators.http import require_POST
+from django.contrib import messages
 from .models import DemandesTraiter, RejectedDemandesRetrait
+from django.views.decorators.http import require_POST
 
 @require_POST
 def delete_all_demandes_traiter(request):
     try:
-        DemandeTraiter.objects.all().delete()
+        DemandesTraiter.objects.all().delete()
         messages.success(request, 'Toutes les demandes traitées ont été supprimées avec succès.')
     except Exception as e:
         messages.error(request, f'Erreur lors de la suppression des demandes traitées: {e}')
-    return redirect('statistiques')  # Redirect to the page displaying the statistics
+    return redirect('dashboard')  # Redirect to the page displaying the statistics
 
 @require_POST
 def delete_all_demandes_rejetees(request):
     try:
-        DemandeRejete.objects.all().delete()
+        RejectedDemandesRetrait.objects.all().delete()
         messages.success(request, 'Toutes les demandes rejetées ont été supprimées avec succès.')
     except Exception as e:
         messages.error(request, f'Erreur lors de la suppression des demandes rejetées: {e}')
-    return redirect('statistiques')  # Redirect to the page displaying the statistics
+    return redirect('dashboard')  # Redirect to the page displaying the statistics
 
+from django.http import HttpResponse
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+import io
+from django.http import HttpResponse
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
+import io
+from .models import RejectedDemandesRetrait  # Import the correct model
 
+def download_pdf_rejected_demandes(request):
+    rejected_demandes = RejectedDemandesRetrait.objects.all()
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
+
+    # Styles
+    styles = getSampleStyleSheet()
+    title_style = styles['Title']
+    heading_style = styles['Heading2']
+    body_style = styles['BodyText']
+
+    # Title
+    title = Paragraph("Liste des Demandes Rejetées", title_style)
+    elements.append(title)
+
+    # Table header
+    data = [
+        ["Numéro Demande", "Nom Agent", "Prénom Agent", "Date Début Séjour", "Date Fin Séjour"]
+    ]
+    
+    # Add data
+    for demande in rejected_demandes:
+        data.append([
+            demande.numero_demande,
+            demande.nom_agent,
+            demande.prenom_agent,
+            demande.date_debut_sejour.strftime("%d-%m-%Y"),
+            demande.date_fin_sejour.strftime("%d-%m-%Y")
+        ])
+
+    # Create table
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), '#d0d0d0'),
+        ('TEXTCOLOR', (0, 0), (-1, 0), '#000000'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), '#f5f5f5'),
+        ('GRID', (0, 0), (-1, -1), 1, '#000000'),
+    ]))
+    
+    elements.append(table)
+    
+    # Build PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    response = HttpResponse(buffer.read(), content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="demandes_rejetees.pdf"'
+    return response
+    
+from django.http import HttpResponse
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
+import io
+from .models import DemandesTraiter  # Import the correct model
+
+def download_pdf_demandes_traiter(request):
+    demandes = DemandesTraiter.objects.all()
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
+
+    # Styles
+    styles = getSampleStyleSheet()
+    title_style = styles['Title']
+    heading_style = styles['Heading2']
+    body_style = styles['BodyText']
+
+    # Title
+    title = Paragraph("Liste des Demandes Traitées", title_style)
+    elements.append(title)
+
+    # Table header
+    data = [
+        ["Numéro Demande", "Ville", "Matricule", "Date Début Séjour", "Date Fin Séjour", "A", "D", "S", "P"]
+    ]
+    
+    # Add data
+    for demande in demandes:
+        data.append([
+            demande.numero_demande,
+            demande.ville,
+            #demande.nom_agent,
+           # demande.prenom_agent,
+            demande.matricule,
+            demande.date_debut_sejour.strftime("%d-%m-%Y"),
+            demande.date_fin_sejour.strftime("%d-%m-%Y"),
+            demande.A,
+            demande.D,
+            demande.S,
+            demande.P
+        ])
+
+    # Create table
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), '#d0d0d0'),
+        ('TEXTCOLOR', (0, 0), (-1, 0), '#000000'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), '#f5f5f5'),
+        ('GRID', (0, 0), (-1, -1), 1, '#000000'),
+    ]))
+    
+    elements.append(table)
+    
+    # Build PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    response = HttpResponse(buffer.read(), content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="demandes_traiter.pdf"'
+    return response

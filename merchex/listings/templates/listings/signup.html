@@ -238,24 +238,24 @@
               <h5 class="mb-0">Login</h5>
             </div>
             <div class="card-body">
-               <!-- Display messages -->
-               {% if messages %}
-               <div class="alert-container">
-                   {% for message in messages %}
-                       {% if "missing-values" in message.tags %}
-                           <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                               {{ message }}
-                               <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                           </div>
-                       {% else %}
-                           <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                               {{ message }}
-                               <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                           </div>
-                       {% endif %}
-                   {% endfor %}
-               </div>
-               {% endif %}
+               <!-- Message Alerts -->
+          <div>
+            {% if messages %}
+                {% for message in messages %}
+                    {% if message.tags == "error" %}
+                        <div class="alert alert-danger alert-dismissible fade show mt-2" role="alert">
+                    {% elif message.tags == "success" %}
+                        <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
+                    {% else %}
+                        <div class="alert alert-info alert-dismissible fade show mt-2" role="alert">
+                    {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+          </div>
+          
                 
                 <form method="POST" class="bg-white shadow-lg rounded p-4 mb-4 border border-gray-300">
                     {% csrf_token %}
