@@ -475,75 +475,94 @@
             </div>
             
           <!-- Modal for Editing a Demande -->
-          <div class="modal fade" id="editDemandeModal" tabindex="-1" aria-labelledby="editDemandeModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="editDemandeModalLabel">Éditer une Demande</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <form id="editDemandeForm" method="post" action="{% url 'edit_demande' 0 %}">
-                        {% csrf_token %}
-                        <div class="modal-body">
-                            <input type="hidden" name="demande_id" id="editDemandeId">
-
-                            <!-- Fields for Editing -->
-                            <div class="mb-3">
-                                <label for="editVille" class="form-label">Ville</label>
-                                <select class="form-control" id="editVille" name="ville" required>
-                                    <option value="" disabled selected>Choisissez une ville</option>
-                                    <option value="BOUZNIKA">BOUZNIKA</option>
-                                    <option value="CABO NEGRO">CABO NEGRO</option>
-                                    <option value="MARRAKECH">MARRAKECH</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label for="editNomAgent" class="form-label">Nom Agent</label>
-                                <input type="text" class="form-control" id="editNomAgent" name="nom_agent" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="editPrenomAgent" class="form-label">Prénom Agent</label>
-                                <input type="text" class="form-control" id="editPrenomAgent" name="prenom_agent" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="editMatricule" class="form-label">Matricule</label>
-                                <input type="text" class="form-control" id="editMatricule" name="matricule" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="editDateDemande" class="form-label">Date de Demande</label>
-                                <input type="date" class="form-control" id="editDateDemande" name="date_demande" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="editDateDebutSejour" class="form-label">Date Début Séjour</label>
-                                <input type="date" class="form-control" id="editDateDebutSejour" name="date_debut_sejour" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="editDateFinSejour" class="form-label">Date Fin Séjour</label>
-                                <input type="date" class="form-control" id="editDateFinSejour" name="date_fin_sejour" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="editTypeDeVue" class="form-label">Type de Vue</label>
-                                <select class="form-select" id="editTypeDeVue" name="type_de_vue" required>
-                                    <option value="" disabled selected>Choisissez un type de vue</option>
-                                    <option value="RESIDENCE DE 3 CHAMBRES + SALON (8 personnes)">RESIDENCE DE 3 CHAMBRES + SALON (8 personnes)</option>
-                                    <option value="RESIDENCE DE 2 CHAMBRES + SALON (6 personnes)">RESIDENCE DE 2 CHAMBRES + SALON (6 personnes)</option>
-                                    <option value="RESIDENCE DE 3 CHAMBRES + 2 SALON (8 personnes)">RESIDENCE DE 3 CHAMBRES + 2 SALON (8 personnes)</option>
-                                    <option value="RESIDENCE DE 1 CHAMBRE + SALON (4 personnes)">RESIDENCE DE 1 CHAMBRE + SALON (4 personnes)</option>
-                                    <option value="RESIDENCE DE 2 CHAMBRES + 1 SALON (6 personnes)">RESIDENCE DE 2 CHAMBRES + 1 SALON (6 personnes)</option>
-                                    <!-- Add other unique values as needed -->
-                                </select>
-                            </div>
-                           
-                          
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                            <button type="submit" class="btn btn-primary">Enregistrer</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+<div class="modal fade" id="editDemandeModal" tabindex="-1" aria-labelledby="editDemandeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h5 class="modal-title" id="editDemandeModalLabel">Éditer une Demande</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
+          <form id="editDemandeForm" method="post" action="{% url 'edit_demande' 0 %}">
+              {% csrf_token %}
+              <div class="modal-body">
+                  <input type="hidden" name="demande_id" id="editDemandeId">
+
+                  <!-- Fields for Editing -->
+                  <div class="mb-3">
+                      <label for="editNumeroDemande" class="form-label">Numéro de Demande</label>
+                      <input type="text" class="form-control" id="editNumeroDemande" name="numero_demande" required>
+                  </div>
+                  <div class="mb-3">
+                      <label for="editVille" class="form-label">Ville</label>
+                      <select class="form-control" id="editVille" name="ville" required>
+                          <option value="" disabled selected>Choisissez une ville</option>
+                          <option value="BOUZNIKA">BOUZNIKA</option>
+                          <option value="CABO NEGRO">CABO NEGRO</option>
+                          <option value="MARRAKECH">MARRAKECH</option>
+                      </select>
+                  </div>
+                  <div class="mb-3">
+                      <label for="editNomAgent" class="form-label">Nom Agent</label>
+                      <input type="text" class="form-control" id="editNomAgent" name="nom_agent" required>
+                  </div>
+                  <div class="mb-3">
+                      <label for="editPrenomAgent" class="form-label">Prénom Agent</label>
+                      <input type="text" class="form-control" id="editPrenomAgent" name="prenom_agent" required>
+                  </div>
+                  <div class="mb-3">
+                      <label for="editMatricule" class="form-label">Matricule</label>
+                      <input type="text" class="form-control" id="editMatricule" name="matricule" required>
+                  </div>
+                  <div class="mb-3">
+                      <label for="editDateDemande" class="form-label">Date de Demande</label>
+                      <input type="date" class="form-control" id="editDateDemande" name="date_demande" required>
+                  </div>
+                  <div class="mb-3">
+                      <label for="editDateDebutSejour" class="form-label">Date Début Séjour</label>
+                      <input type="date" class="form-control" id="editDateDebutSejour" name="date_debut_sejour" required>
+                  </div>
+                  <div class="mb-3">
+                      <label for="editDateFinSejour" class="form-label">Date Fin Séjour</label>
+                      <input type="date" class="form-control" id="editDateFinSejour" name="date_fin_sejour" required>
+                  </div>
+                  <div class="mb-3">
+                      <label for="editTypeDeVue" class="form-label">Type de Vue</label>
+                      <select class="form-select" id="editTypeDeVue" name="type_de_vue" required>
+                          <option value="" disabled selected>Choisissez un type de vue</option>
+                          <option value="RESIDENCE DE 3 CHAMBRES + SALON (8 personnes)">RESIDENCE DE 3 CHAMBRES + SALON (8 personnes)</option>
+                          <option value="RESIDENCE DE 2 CHAMBRES + SALON (6 personnes)">RESIDENCE DE 2 CHAMBRES + SALON (6 personnes)</option>
+                          <option value="RESIDENCE DE 3 CHAMBRES + 2 SALON (8 personnes)">RESIDENCE DE 3 CHAMBRES + 2 SALON (8 personnes)</option>
+                          <option value="RESIDENCE DE 1 CHAMBRE + SALON (4 personnes)">RESIDENCE DE 1 CHAMBRE + SALON (4 personnes)</option>
+                          <option value="RESIDENCE DE 2 CHAMBRES + 1 SALON (6 personnes)">RESIDENCE DE 2 CHAMBRES + 1 SALON (6 personnes)</option>
+                          <!-- Add other unique values as needed -->
+                      </select>
+                  </div>
+                  <div class="mb-3">
+                      <label for="editNombreNuites" class="form-label">Nombre de Nuitées</label>
+                      <input type="number" class="form-control" id="editNombreNuites" name="nombre_nuites" required>
+                  </div>
+                  <div class="mb-3">
+                      <label for="editStatut" class="form-label">Statut</label>
+                      <input type="text" class="form-control" id="editStatut" name="statut">
+                  </div>
+                  <div class="mb-3">
+                      <label for="editNaturePeriode" class="form-label">Nature Période</label>
+                      <input type="text" class="form-control" id="editNaturePeriode" name="nature_periode">
+                  </div>
+                  <div class="mb-3">
+                      <label for="editSite" class="form-label">Site</label>
+                      <input type="text" class="form-control" id="editSite" name="site">
+                  </div>
+              </div>
+              <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                  <button type="submit" class="btn btn-primary">Enregistrer</button>
+              </div>
+          </form>
+      </div>
+  </div>
+</div>
+
 
 
        <!-- Delete Demande Modal -->
@@ -726,6 +745,37 @@
         });
     });
 </script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+      var editDemandeModal = document.getElementById('editDemandeModal');
+      editDemandeModal.addEventListener('show.bs.modal', function (event) {
+          var button = event.relatedTarget;
+          var demandeId = button.getAttribute('data-demande-id');
+  
+          var editForm = editDemandeModal.querySelector('#editDemandeForm');
+          var actionUrl = '{% url "edit_demande" 0 %}'.replace('0', demandeId);
+          editForm.setAttribute('action', actionUrl);
+  
+          var demandeRow = button.closest('tr');
+          var cells = demandeRow.getElementsByTagName('td');
+  
+          editDemandeModal.querySelector('#editDemandeId').value = demandeId;
+          editDemandeModal.querySelector('#editNumeroDemande').value = cells[0].textContent.trim();
+          editDemandeModal.querySelector('#editVille').value = cells[1].textContent.trim();
+          editDemandeModal.querySelector('#editNomAgent').value = cells[2].textContent.trim();
+          editDemandeModal.querySelector('#editPrenomAgent').value = cells[3].textContent.trim();
+          editDemandeModal.querySelector('#editMatricule').value = cells[4].textContent.trim();
+          editDemandeModal.querySelector('#editDateDemande').value = cells[5].textContent.trim();
+          editDemandeModal.querySelector('#editDateDebutSejour').value = cells[6].textContent.trim();
+          editDemandeModal.querySelector('#editDateFinSejour').value = cells[7].textContent.trim();
+          editDemandeModal.querySelector('#editTypeDeVue').value = cells[8].textContent.trim();
+          editDemandeModal.querySelector('#editNombreNuites').value = cells[9].textContent.trim();
+          editDemandeModal.querySelector('#editStatut').value = cells[10].textContent.trim();
+          editDemandeModal.querySelector('#editNaturePeriode').value = cells[11].textContent.trim();
+          editDemandeModal.querySelector('#editSite').value = cells[12].textContent.trim();
+      });
+  });
+  </script>
   
 
   <!-- Github buttons -->
