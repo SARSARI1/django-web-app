@@ -7,13 +7,13 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('signup/', views.signup_view, name='signup'),
     path('profile/', views.profile, name='profile'),
-    path('hello/', views.hello),
     path('about-us/', views.about),
     path('dashboard/', views.statistiques,  name='dashboard'),
     path('listes/', views.tables, name='listes'),
     path('historique/', views.historique, name='historique'),
     path('quota/',views.quota, name='quota'),
     path('tables/', views.upload_files, name='upload_files'),  # This should match the form action
+    path('process-files/', views.process_files, name='process_files'),  # Add this line
     path('download_pdf/<str:ville>/<str:type_de_vue>/', views.download_pdf, name='download_pdf'),
     path('list/', views.list_generated, name='list_generated'),
     path('quotas/', views.quota_list, name='quota_list'),
@@ -26,23 +26,24 @@ urlpatterns = [
     path('agents/edit/<int:agent_id>/', views.edit_agent, name='edit_agent'),
     path('agents/delete/<int:agent_id>/', views.delete_agent, name='delete_agent'),  
     path('agents/', views.AgentsAffichage, name='AgentsAffichage'), 
-    path('upload_excel/', views.upload_excel_agents, name='upload_excel'), 
+    path('upload_excel_agents/', views.upload_excel_agents, name='upload_excel_agents'), 
     path('delete_all_agents/', views.delete_all_agents, name='delete_all_agents'),
-      # Liste et affichage des demandes
-    path('demandes/', views.demandes_affichage, name='demandes_affichage'),
+    # Liste et affichage des demandes
     
-    # Formulaire de modification d'une demande
+    path('demandes/', views.demande_list, name='demande_list'),
+    path('demandes/add/', views.add_demande, name='add_demande'),
     path('demandes/edit/<int:demande_id>/', views.edit_demande, name='edit_demande'),
-    
-    # Suppression d'une demande
+    path('demandes/<int:demande_id>/edit-data/', views.get_demande_data, name='get_demande_data'),
     path('demandes/delete/<int:demande_id>/', views.delete_demande, name='delete_demande'),
+    path('demandes/delete-all/', views.delete_all_demandes, name='delete_all_demandes'),
+    # urls.py
+    path('demandes/upload/', views.upload_excel_demandes, name='upload_excel_demandes'),
+
+
+    path('delete-all-demandes-traiter/', views.delete_all_demandes_traiter, name='delete_all_demandes_traiter'),
+    path('delete-all-demandes-rejetees/', views.delete_all_demandes_rejetees, name='delete_all_demandes_rejetees'),
     
-    # Téléchargement d'un fichier Excel
-    path('upload_excel_Demandes/', views.upload_excelDemandes, name='upload_excel_Demandes'),
-    
-    # Suppression de toutes les demandes
-    path('delete_all_demandes/', views.delete_all_demandes, name='delete_all_demandes'),
-    
+
 
     
     

@@ -95,7 +95,7 @@
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link  " href="{% url 'demandes_affichage' %}">
+          <a class="nav-link  " href="{% url 'demande_list' %}">
             <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
               <svg width="12px" height="12px" viewBox="0 0 42 42" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
                 <title>box-3d-50</title>
@@ -241,6 +241,24 @@
             <div class="card-header pb-0">
               <h1>Importez les fichiers Excel</h1>
             </div>
+             <!-- Display messages -->
+             {% if messages %}
+             <div class="alert-container">
+                 {% for message in messages %}
+                     {% if "missing-values" in message.tags %}
+                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                             {{ message }}
+                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                         </div>
+                     {% else %}
+                         <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                             {{ message }}
+                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                         </div>
+                     {% endif %}
+                 {% endfor %}
+             </div>
+             {% endif %}
             <div class="card-body px-0 pt-0 pb-2">
               <div class="table-responsive p-0">
 
@@ -264,16 +282,22 @@
                           <label for="demandes_file" class="form-label">Téléchargez le fichier des demandes</label>
                           <input type="file" class="form-control" id="demandes_file" name="demandes_file" required>
                       </div>
-                      <div class="mb-3">
-                          <label for="date_debut_sejour" class="form-label">Date début séjour</label>
-                          <input type="date" class="form-control" id="date_debut_sejour" name="date_debut_sejour" required>
-                      </div>
-                      <div class="mb-3">
-                          <label for="date_fin_sejour" class="form-label">Date fin séjour</label>
-                          <input type="date" class="form-control" id="date_fin_sejour" name="date_fin_sejour" required>
-                      </div>
-                      <button type="submit" class="btn btn-success">Submit</button>
+                      
+                      <button type="submit" class="btn btn-success">Enregistrer</button>
                   </form>
+                  
+                  <form method="post" action="{% url 'process_files' %}" enctype="multipart/form-data" id="upload-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="date_debut_sejour" class="form-label">Date début séjour</label>
+                        <input type="date" class="form-control" id="date_debut_sejour" name="date_debut_sejour" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date_fin_sejour" class="form-label">Date fin séjour</label>
+                        <input type="date" class="form-control" id="date_fin_sejour" name="date_fin_sejour" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Gener les listes </button>
+                </form>
                   
               
                   </div>
