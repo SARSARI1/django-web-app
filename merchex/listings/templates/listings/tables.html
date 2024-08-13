@@ -272,44 +272,56 @@
                   
                     <div class="container mt-4">
                       <form method="post" enctype="multipart/form-data" id="upload-form">
-                          {% csrf_token %}
-                          <div class="mb-3">
-                              <label for="agents_file" class="form-label">Téléchargez le fichier des agents</label>
-                              <input type="file" class="form-control" id="agents_file" name="agents_file" required>
-                          </div>
-                          <div class="mb-3">
-                              <label for="historique_file" class="form-label">Téléchargez le fichier historique</label>
-                              <input type="file" class="form-control" id="historique_file" name="historique_file" required>
-                          </div>
-                          <div class="mb-3">
-                              <label for="demandes_file" class="form-label">Téléchargez le fichier des demandes</label>
-                              <input type="file" class="form-control" id="demandes_file" name="demandes_file" required>
-                          </div>
-                          
-                          <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmationModal">
-                              Enregistrer
-                          </button>
-                      </form>
-              
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="agents_file" class="form-label">Téléchargez le fichier des agents</label>
+                            <input type="file" class="form-control" id="agents_file" name="agents_file" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="historique_file" class="form-label">Téléchargez le fichier historique</label>
+                            <input type="file" class="form-control" id="historique_file" name="historique_file" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="demandes_file" class="form-label">Téléchargez le fichier des demandes</label>
+                            <input type="file" class="form-control" id="demandes_file" name="demandes_file" required>
+                        </div>
+                        
+                        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmationModal">
+                            Enregistrer
+                        </button>
+                    </form>
                       <!-- Modal -->
-                      <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
-                          <div class="modal-dialog">
-                              <div class="modal-content">
-                                  <div class="modal-header">
-                                      <h5 class="modal-title" id="confirmationModalLabel">Confirmation</h5>
-                                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                  </div>
-                                  <div class="modal-body">
-                                      Voulez-vous enregistrer les données dans la base de données ou juste effectuer les calculs sans enregistrer ?
-                                  </div>
-                                  <div class="modal-footer">
-                                      <a href="#" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</a>
-                                      <a href="#" class="btn btn-primary" id="saveInDatabase">Enregistrer dans la base de données</a>
-                                      <a href="#" class="btn btn-primary" id="calculateOnly">Calculer seulement</a>
-                                  </div>
-                              </div>
-                          </div>
+                      <!-- Modal -->
+            <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+              <div class="modal-dialog">
+                  <div class="modal-content">
+                      <div class="modal-header">
+                          <h5 class="modal-title" id="confirmationModalLabel">Confirmation</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                       </div>
+                      <div class="modal-body">
+                          Si vous voulez calculer les résultats sans les enregistrer dans la base de données, cliquez sur le bouton "Calculer" mais entrez d'abord les dates.
+                          <form id="date-selection-form">
+                              <div class="mb-3">
+                                  <label for="date_debut_sejour" class="form-label">Date début séjour</label>
+                                  <input type="date" class="form-control" id="date_debut_sejour" name="date_debut_sejour" required>
+                              </div>
+                              <div class="mb-3">
+                                  <label for="date_fin_sejour" class="form-label">Date fin séjour</label>
+                                  <input type="date" class="form-control" id="date_fin_sejour" name="date_fin_sejour" required>
+                              </div>
+                              <button type="button" class="btn btn-primary" id="calculateOnly">Calculer seulement</button>
+                          </form>
+                          OU Voulez-vous enregistrer les données dans la base de données ?
+                      </div>
+                      <div class="modal-footer">
+                          <a href="#" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</a>
+                          <button class="btn btn-primary" id="saveInDatabase">Enregistrer dans la base de données</button>
+                      </div>
+                  </div>
+              </div>
+                    </div>
+                    
                   </div>
                   
                   <form method="post" action="{% url 'process_files' %}" enctype="multipart/form-data" id="upload-form">
@@ -348,7 +360,7 @@
                                             <div class="d-flex px-2 py-1">
                                                 <div class="d-flex flex-column justify-content-center">
                                                     <h6 class="mb-0 text-sm">{{ ville }}</h6>
-                                                </div>
+                                                </div> 
                                             </div>
                                         </td>
                                         {% endif %}
@@ -427,73 +439,110 @@
   </div>
 </div>
 
+
+
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const modal = new bootstrap.Modal(document.getElementById('missingDataModal'));
-  const missingData = "{{ missing_data|escapejs }}";
-  const missingDataMessage = document.getElementById('missing-data-message');
-  const tableContainer = document.getElementById('missing-data-table-container');
-  const noMissingDataMessage = document.getElementById('no-missing-data-message');
-  const tableBody = document.getElementById('missing-data-table-body');
+  document.addEventListener('DOMContentLoaded', function() {
+    const modal = new bootstrap.Modal(document.getElementById('missingDataModal'));
+    const missingData = "{{ missing_data|escapejs }}";
+    const missingDataMessage = document.getElementById('missing-data-message');
+    const tableContainer = document.getElementById('missing-data-table-container');
+    const noMissingDataMessage = document.getElementById('no-missing-data-message');
+    const tableBody = document.getElementById('missing-data-table-body');
+  
+    if (missingData) {
+        const data = JSON.parse(missingData);
+  
+        // Generate a message based on the missing data
+        let columnsMissing = {
+            Nom_agent: false,
+            Prenom_agent: false
+        };
+  
+        data.forEach(row => {
+            if (!row["Nom agent"]) columnsMissing.Nom_agent = true;
+            if (!row["Prenom agent"]) columnsMissing.Prenom_agent = true;
+        });
+  
+        let message = "Les données sont manquantes pour :<ul>";
+        if (columnsMissing.Nom_agent) message += "<li>Nom agent</li>";
+        if (columnsMissing.Prenom_agent) message += "<li>Prénom agent</li>";
+        message += "</ul>";
+  
+        if (message) {
+            missingDataMessage.innerHTML = message;
+            tableContainer.style.display = 'block';
+  
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row["Nom agent"] || 'N/A'}</td>
+                    <td>${row["Prenom agent"] || 'N/A'}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+  
+            noMissingDataMessage.style.display = 'none';
+        } else {
+            missingDataMessage.innerHTML = "<p>Aucune donnée manquante.</p>";
+            tableContainer.style.display = 'none';
+            noMissingDataMessage.style.display = 'block';
+        }
+        
+        modal.show();
+    }
+  });
+  </script>
+    <script>
+      document.getElementById('saveInDatabase').addEventListener('click', function() {
+          var dateDebutSejour = document.getElementById('date_debut_sejour').value;
+          var dateFinSejour = document.getElementById('date_fin_sejour').value;
 
-  if (missingData) {
-      const data = JSON.parse(missingData);
+          // Append the dates to the form as hidden inputs
+          var uploadForm = document.getElementById('upload-form');
 
-      // Generate a message based on the missing data
-      let columnsMissing = {
-          Nom_agent: false,
-          Prenom_agent: false
-      };
+          var dateDebutInput = document.createElement('input');
+          dateDebutInput.type = 'hidden';
+          dateDebutInput.name = 'date_debut_sejour_db'; // Changed the name for differentiation
+          dateDebutInput.value = dateDebutSejour;
+          uploadForm.appendChild(dateDebutInput);
 
-      data.forEach(row => {
-          if (!row["Nom agent"]) columnsMissing.Nom_agent = true;
-          if (!row["Prenom agent"]) columnsMissing.Prenom_agent = true;
+          var dateFinInput = document.createElement('input');
+          dateFinInput.type = 'hidden';
+          dateFinInput.name = 'date_fin_sejour_db'; // Changed the name for differentiation
+          dateFinInput.value = dateFinSejour;
+          uploadForm.appendChild(dateFinInput);
+
+          // Set the form action and submit
+          uploadForm.action = '{% url "upload_files" %}';  // Ensure this URL is correct
+          uploadForm.submit();
       });
 
-      let message = "Les données sont manquantes pour :<ul>";
-      if (columnsMissing.Nom_agent) message += "<li>Nom agent</li>";
-      if (columnsMissing.Prenom_agent) message += "<li>Prénom agent</li>";
-      message += "</ul>";
+      document.getElementById('calculateOnly').addEventListener('click', function() {
+          var dateDebutSejour = document.getElementById('date_debut_sejour').value;
+          var dateFinSejour = document.getElementById('date_fin_sejour').value;
 
-      if (message) {
-          missingDataMessage.innerHTML = message;
-          tableContainer.style.display = 'block';
+          // Ensure the dates are set in the form before submission
+          var uploadForm = document.getElementById('upload-form');
 
-          data.forEach(row => {
-              const tr = document.createElement('tr');
-              tr.innerHTML = `
-                  <td>${row["Nom agent"] || 'N/A'}</td>
-                  <td>${row["Prenom agent"] || 'N/A'}</td>
-              `;
-              tableBody.appendChild(tr);
-          });
+          var dateDebutInput = document.createElement('input');
+          dateDebutInput.type = 'hidden';
+          dateDebutInput.name = 'date_debut_sejour';
+          dateDebutInput.value = dateDebutSejour;
+          uploadForm.appendChild(dateDebutInput);
 
-          noMissingDataMessage.style.display = 'none';
-      } else {
-          missingDataMessage.innerHTML = "<p>Aucune donnée manquante.</p>";
-          tableContainer.style.display = 'none';
-          noMissingDataMessage.style.display = 'block';
-      }
-      
-      modal.show();
-  }
-});
-</script>
- <!-- Custom JS -->
- <script>
-  document.getElementById('saveInDatabase').addEventListener('click', function() {
-      document.getElementById('upload-form').action = '{% url "upload_files" %}';  // Ensure this URL is correct
-      document.getElementById('upload-form').submit();
-  });
+          var dateFinInput = document.createElement('input');
+          dateFinInput.type = 'hidden';
+          dateFinInput.name = 'date_fin_sejour';
+          dateFinInput.value = dateFinSejour;
+          uploadForm.appendChild(dateFinInput);
 
-  document.getElementById('calculateOnly').addEventListener('click', function() {
-      document.getElementById('upload-form').action = '{% url "proceed_without_storing" %}';  // Ensure this URL is correct
-      document.getElementById('upload-form').submit();
-  });
-</script>
-
-
-
+          // Set the form action and submit
+          uploadForm.action = '{% url "proceed_without_storing" %}'; // Ensure this URL is correct
+          uploadForm.submit();
+      });
+  </script>
 
       
 
