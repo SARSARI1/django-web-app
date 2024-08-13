@@ -13,13 +13,18 @@ urlpatterns = [
     path('historique/', views.historique, name='historique'),
     path('quota/',views.quota, name='quota'),
     path('tables/', views.upload_files, name='upload_files'),  # This should match the form action
+    path('proceed_without_storing/', views.proceed_without_storing, name='proceed_without_storing'),  # This should match the form action
+
     path('process-files/', views.process_files, name='process_files'),  # Add this line
+    path('proceed-with-calculation/', views.proceed_with_calculation, name='proceed_with_calculation'),
+    path('list-generated/', views.list_generated, name='list_generated'),
     path('download_pdf/<str:ville>/<str:type_de_vue>/', views.download_pdf, name='download_pdf'),
     path('list/', views.list_generated, name='list_generated'),
     path('quotas/', views.quota_list, name='quota_list'),
     path('update_quota/', views.update_quota, name='update_quota'),
     path('delete_quota/', views.delete_quota, name='delete_quota'),
     path('add_quota/', views.add_quota, name='add_quota'),
+    
     path('upload-excel-historique/', views.upload_excel_historique, name='upload_excel_historique'),
     path('delete-historique/', views.delete_historique, name='delete_historique'),
     path('AgentsAffichage/', views.AgentsAffichage, name='AgentsAffichage'),

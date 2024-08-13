@@ -193,21 +193,32 @@ def upload_files(request):
 
 # View for listing generated data
 
+def proceed_without_storing(request):
+    print("i ma in the wihotut storign ")
+    pass
 
 def list_generated(request):
+    # Retrieve missing data from session
+    missing_data = request.session.get('missing_data', None)
+
     # Fetch distinct combinations of 'ville' and 'type_de_vue'
     data = DemandesTraiter.objects.values('ville', 'type_de_vue').distinct()
-    
+
     # Group data by 'ville' and store unique 'type_de_vue' values
     grouped_data = defaultdict(set)
     for item in data:
         grouped_data[item['ville']].add(item['type_de_vue'])
-    
+
     # Convert set to list for rendering
     context = {
         'data': {ville: list(types) for ville, types in grouped_data.items()}
     }
-    
+
+    # If missing data exists, add it to the context and optionally clear the session
+    if missing_data:
+        context['missing_data'] = missing_data
+        del request.session['missing_data']  # Clear the session variable after use
+
     return render(request, 'listings/tables.html', context)
 
 
@@ -387,13 +398,18 @@ def save_rejected_records(df, request):
 
 
 
+def proceed_with_calculation(request):
+    # Retrieve dates from the session
+    date_debut_sejour_str = request.session.get('date_debut_sejour')
+    date_fin_sejour_str = request.session.get('date_fin_sejour')
 
-def process_files(request):
-    form = CalculForm(request.POST, request.FILES)
-    if form.is_valid():
-        # Retrieve date values from the form
-        date_debut_sejour = form.cleaned_data.get('date_debut_sejour')
-        date_fin_sejour = form.cleaned_data.get('date_fin_sejour')
+    if date_debut_sejour_str and date_fin_sejour_str:
+        # Convert strings back to date objects
+        date_debut_sejour = parse_date(date_debut_sejour_str)
+        date_fin_sejour = parse_date(date_fin_sejour_str)
+
+        print("i got to inside")
+       
 
         # Check if dates are provided
         if not date_debut_sejour or not date_fin_sejour:
@@ -475,6 +491,13 @@ def process_files(request):
             demandes_traiter_df['date_embauche'] = pd.to_datetime(demandes_traiter_df['date_embauche'], format='%d/%m/%Y')
             demandes_traiter_df['Date debut sejour'] = pd.to_datetime(demandes_traiter_df['Date debut sejour'], format='%d/%m/%Y')
             demandes_traiter_df['date_debut_retraite'] = pd.to_datetime(demandes_traiter_df['date_debut_retraite'], format='%d/%m/%Y')
+            
+            # Check for missing values in required columns of demandes_traiter_df
+            required_columns = ['Matricule', 'date_embauche', 'sit_fam', 'NOMBRE_ENF']
+            
+            demandes_traiter_df = demandes_traiter_df.dropna(subset=required_columns)
+            messages.success(request, "L'opération a été effectuée avec succès après avoir ignoré les données manquantes. Les calculs ont été poursuivis avec les données disponibles.")
+                
 
             # Filter expired date_debut_retraite
             save_rejected_records(demandes_traiter_df, request)
@@ -487,9 +510,16 @@ def process_files(request):
                 messages.info(request, "Aucun enregistrement ne correspond aux critères après filtrage.")
                 return redirect('list_generated')
 
-            # Calculate A
-            from dateutil.relativedelta import relativedelta
-            demandes_traiter_df['A'] = demandes_traiter_df['date_embauche'].apply(lambda x: relativedelta(datetime.now(), x).years * 12 + relativedelta(datetime.now(), x).months)
+          
+
+            # Define the fixed date: June 1st of the current year
+            fixed_date = datetime(datetime.now().year, 6, 1)
+
+            # Calculate the difference in months
+            demandes_traiter_df['A'] = demandes_traiter_df['date_embauche'].apply(
+                lambda x: relativedelta(fixed_date, x).years * 12 + relativedelta(fixed_date, x).months
+            )
+
 
             # Calculate S
             def calculate_S(row):
@@ -522,7 +552,7 @@ def process_files(request):
                         total_D += 90
                     elif year_difference == 3:
                         total_D += 50
-                    elif year_difference >= 4:
+                    elif year_difference == 4:
                         total_D += 20
 
                 return total_D
@@ -538,6 +568,200 @@ def process_files(request):
 
             # Save the DataFrame to the database
             save_to_database(demandes_traiter_df,request)
+            messages.success(request, "Le traitement des fichiers a été effectué avec succès.")
+        except Exception as e:
+            messages.error(request, f"Une erreur est survenue : {str(e)}")
+
+    return redirect('list_generated')  # Replace with the actual view name
+
+def process_files(request):
+    form = CalculForm(request.POST, request.FILES)
+    if form.is_valid():
+        print(" i was insideof process files ")
+        # Retrieve date values from the form
+        date_debut_sejour = form.cleaned_data.get('date_debut_sejour')
+        date_fin_sejour = form.cleaned_data.get('date_fin_sejour')
+        
+
+        # Check if dates are provided
+        if not date_debut_sejour or not date_fin_sejour:
+            messages.error(request, "Les dates de début et de fin de séjour sont requises.")
+            return redirect('list_generated')  # Replace with the actual view name
+        
+        try:
+            # Fetch data from the models
+            historique_queryset = Historique.objects.all().values()
+            agents_queryset = Agent.objects.all().values()
+            demandes_queryset = Demande.objects.all().values()
+            # Convert the querysets to DataFrames
+            historique_df = pd.DataFrame(list(historique_queryset))
+            agents_df = pd.DataFrame(list(agents_queryset))
+            demandes_df = pd.DataFrame(list(demandes_queryset))
+
+            # Column name mappings
+            historique_rename_dict = {
+                'ville': 'Ville',
+                'nom_agent': 'Nom agent',
+                'prenom_agent': 'Prenom agent',
+                'matricule': 'Matricule',
+                'date_demande': 'Date de la demande',
+                'date_debut_sejour': 'Date debut sejour',
+                'date_fin_sejour': 'Date fin sejour',
+                'nombre_nuites': 'Nombre de nuites',
+            }
+            historique_df.rename(columns=historique_rename_dict, inplace=True)
+
+            agents_rename_dict = {
+                'matricule': 'matricule',
+                'nom_prenom': 'nom_prenom',
+                'date_naissance': 'date_naissance',
+                'date_embauche': 'date_embauche',
+                'nombre_enf': 'NOMBRE_ENF',
+                'date_debut_retraite': 'date_debut_retraite',
+            }
+            agents_df.rename(columns=agents_rename_dict, inplace=True)
+
+            demandes_rename_dict = {
+                'numero_demande': 'N° Demande',
+                'ville': 'Ville',
+                'nom_agent': 'Nom agent',
+                'prenom_agent': 'Prenom agent',
+                'matricule': 'Matricule',
+                'date_demande': 'Date de la demande',
+                'date_debut_sejour': 'Date debut sejour',
+                'date_fin_sejour': 'Date fin sejour',
+                'type_de_vue': 'Type de vue',
+                'nombre_nuites': 'Nombre de nuites',
+                'statut': 'Statut',
+                'nature_periode': 'Nature Periode',
+                'site': 'Site'
+            }
+            demandes_df.rename(columns=demandes_rename_dict, inplace=True)
+
+            # Filter rows based on date_debut_sejour and date_fin_sejour
+            demandes_df = demandes_df[
+                (demandes_df['Date debut sejour'] == date_debut_sejour) &
+                (demandes_df['Date fin sejour'] == date_fin_sejour)
+            ]
+
+            # Create a new DataFrame 'demandes_traiter' that contains the exact content of the 'demandes' file
+            demandes_traiter_df = demandes_df.copy()
+
+            # Step 4: Filter Rows
+            demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Site'] == 'Khouribga']
+            demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Nature Periode'] == 'Bloquée']
+            demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Statut'] == 'En attente de traitement']
+
+            # Step 5: Add retraite Column and Calculate Its Values
+            from datetime import datetime
+            demandes_traiter_df = demandes_traiter_df.merge(
+                agents_df[['matricule', 'date_embauche', 'sit_fam', 'NOMBRE_ENF', 'date_debut_retraite']],
+                left_on='Matricule', right_on='matricule', how='left'
+            )
+
+            # Convert dates to datetime
+            demandes_traiter_df['date_embauche'] = pd.to_datetime(demandes_traiter_df['date_embauche'], format='%d/%m/%Y')
+            demandes_traiter_df['Date debut sejour'] = pd.to_datetime(demandes_traiter_df['Date debut sejour'], format='%d/%m/%Y')
+            demandes_traiter_df['date_debut_retraite'] = pd.to_datetime(demandes_traiter_df['date_debut_retraite'], format='%d/%m/%Y')
+            
+            # Check for missing values in required columns of demandes_traiter_df
+            required_columns = ['Matricule', 'date_embauche', 'sit_fam', 'NOMBRE_ENF']
+            missing_data_df = demandes_traiter_df[demandes_traiter_df[required_columns].isna().any(axis=1)]
+            print("this is the messign data shape")
+            print(missing_data_df.shape)
+
+
+            if not missing_data_df.empty:
+                # Pass missing data details to the template
+                print("i was heeer")
+                # Retrieve missing data from session
+                request.session['missing_data'] = missing_data_df.to_json(orient='records')
+                print(request.session['missing_data'])
+                print("Missing data has been stored in the session.")
+        
+                return redirect('list_generated')  # Redirect to the page where you will handle the modal
+               
+
+            
+
+            # Filter expired date_debut_retraite
+            save_rejected_records(demandes_traiter_df, request)
+            demandes_traiter_df = demandes_traiter_df[
+                (demandes_traiter_df['date_debut_retraite'] > demandes_traiter_df['Date debut sejour']) |
+                (demandes_traiter_df['date_debut_retraite'].isna())
+            ]
+
+            if demandes_traiter_df.empty:
+                messages.info(request, "Aucun enregistrement ne correspond aux critères après filtrage.")
+                return redirect('list_generated')
+
+          
+
+            # Define the fixed date: June 1st of the current year
+            fixed_date = datetime(datetime.now().year, 6, 1)
+
+            # Calculate the difference in months
+            demandes_traiter_df['A'] = demandes_traiter_df['date_embauche'].apply(
+                lambda x: relativedelta(fixed_date, x).years * 12 + relativedelta(fixed_date, x).months
+            )
+
+
+            # Calculate S
+            def calculate_S(row):
+                sit_fam = row['sit_fam'].strip().lower()
+                nbr_enf = row['NOMBRE_ENF']
+
+                if sit_fam not in ['célibataire']:
+                    if nbr_enf <= 3:
+                        return 5 + nbr_enf * 5
+                    else:
+                        return 20
+                else:
+                    return 0
+
+            demandes_traiter_df['S'] = demandes_traiter_df.apply(calculate_S, axis=1)
+
+            # Calculate D
+            def calculate_D(row, historique_df):
+                matricule = row['Matricule']
+                matricule_rows = historique_df[historique_df['Matricule'] == matricule]
+                total_D = 0
+
+                for index, hist_row in matricule_rows.iterrows():
+                    date_de_debut_sejour = hist_row['Date debut sejour']
+                    year_difference = datetime.now().year - date_de_debut_sejour.year
+
+                    if year_difference == 1:
+                        total_D += 140
+                    elif year_difference == 2:
+                        total_D += 90
+                    elif year_difference == 3:
+                        total_D += 50
+                    elif year_difference == 4:
+                        total_D += 20
+
+                return total_D
+
+            demandes_traiter_df['D'] = demandes_traiter_df.apply(calculate_D, axis=1, historique_df=historique_df)
+            demandes_traiter_df['D'] = demandes_traiter_df['D'].fillna(0)
+
+            # Calculate P
+            demandes_traiter_df['P'] = 2 * (demandes_traiter_df['A'] + demandes_traiter_df['S']) - demandes_traiter_df['D']
+
+            # Sorting based on 'P'
+            demandes_traiter_df = demandes_traiter_df.sort_values(by=['P', 'A', 'S', 'Date de la demande'], ascending=[False, False, False, False])
+
+            # Save the DataFrame to the database
+            save_to_database(demandes_traiter_df,request)
+
+            # Convert date strings to date objects
+            date_debut_sejour = datetime.strptime(date_debut_sejour, '%Y-%m-%d').date()
+            date_fin_sejour = datetime.strptime(date_fin_sejour, '%Y-%m-%d').date()
+
+            # Store date objects in session as strings
+            request.session['date_debut_sejour'] = date_debut_sejour.strftime('%Y-%m-%d')
+            request.session['date_fin_sejour'] = date_fin_sejour.strftime('%Y-%m-%d')
+
             messages.success(request, "Le traitement des fichiers a été effectué avec succès.")
         except Exception as e:
             messages.error(request, f"Une erreur est survenue : {str(e)}")

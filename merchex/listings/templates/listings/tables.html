@@ -20,6 +20,8 @@
   <link href="{% static 'listings/assets/css/nucleo-svg.css' %}" rel="stylesheet" />
   <!-- CSS Files -->
   <link id="pagestyle" href="{% static 'listings/assets/css/soft-ui-dashboard.css' %}"  rel="stylesheet" />
+ 
+
 </head>
 
 <body class="g-sidenav-show  bg-gray-100">
@@ -55,10 +57,10 @@
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link active" href="{% url 'listes' %}">
+          <a class="nav-link active" href="{% url 'list_generated' %}">
             <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
               <svg width="12px" height="12px" viewBox="0 0 42 42" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-                <title>Listes</title>
+                <title>list_generated</title>
                 <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
                   <g transform="translate(-1869.000000, -293.000000)" fill="#FFFFFF" fill-rule="nonzero">
                     <g transform="translate(1716.000000, 291.000000)">
@@ -268,23 +270,47 @@
                 <div class="container mt-5">
                   <div class="upload-section">
                   
-                    <form method="post" action="{% url 'upload_files' %}" enctype="multipart/form-data" id="upload-form">
-                      {% csrf_token %}
-                      <div class="mb-3">
-                          <label for="agents_file" class="form-label">Téléchargez le fichier des agents</label>
-                          <input type="file" class="form-control" id="agents_file" name="agents_file" required>
+                    <div class="container mt-4">
+                      <form method="post" enctype="multipart/form-data" id="upload-form">
+                          {% csrf_token %}
+                          <div class="mb-3">
+                              <label for="agents_file" class="form-label">Téléchargez le fichier des agents</label>
+                              <input type="file" class="form-control" id="agents_file" name="agents_file" required>
+                          </div>
+                          <div class="mb-3">
+                              <label for="historique_file" class="form-label">Téléchargez le fichier historique</label>
+                              <input type="file" class="form-control" id="historique_file" name="historique_file" required>
+                          </div>
+                          <div class="mb-3">
+                              <label for="demandes_file" class="form-label">Téléchargez le fichier des demandes</label>
+                              <input type="file" class="form-control" id="demandes_file" name="demandes_file" required>
+                          </div>
+                          
+                          <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmationModal">
+                              Enregistrer
+                          </button>
+                      </form>
+              
+                      <!-- Modal -->
+                      <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+                          <div class="modal-dialog">
+                              <div class="modal-content">
+                                  <div class="modal-header">
+                                      <h5 class="modal-title" id="confirmationModalLabel">Confirmation</h5>
+                                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                  </div>
+                                  <div class="modal-body">
+                                      Voulez-vous enregistrer les données dans la base de données ou juste effectuer les calculs sans enregistrer ?
+                                  </div>
+                                  <div class="modal-footer">
+                                      <a href="#" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</a>
+                                      <a href="#" class="btn btn-primary" id="saveInDatabase">Enregistrer dans la base de données</a>
+                                      <a href="#" class="btn btn-primary" id="calculateOnly">Calculer seulement</a>
+                                  </div>
+                              </div>
+                          </div>
                       </div>
-                      <div class="mb-3">
-                          <label for="historique_file" class="form-label">Téléchargez le fichier historique</label>
-                          <input type="file" class="form-control" id="historique_file" name="historique_file" required>
-                      </div>
-                      <div class="mb-3">
-                          <label for="demandes_file" class="form-label">Téléchargez le fichier des demandes</label>
-                          <input type="file" class="form-control" id="demandes_file" name="demandes_file" required>
-                      </div>
-                      
-                      <button type="submit" class="btn btn-success">Enregistrer</button>
-                  </form>
+                  </div>
                   
                   <form method="post" action="{% url 'process_files' %}" enctype="multipart/form-data" id="upload-form">
                     {% csrf_token %}
@@ -362,6 +388,111 @@
           </div>
         </div>
       </div>
+   <!-- Modal for Missing Data -->
+<div class="modal fade" id="missingDataModal" tabindex="-1" aria-labelledby="missingDataModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h5 class="modal-title" id="missingDataModalLabel">Données Manquantes</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+              <div id="missing-data-message">
+                  <!-- JavaScript will populate this message -->
+              </div>
+              
+              <div id="missing-data-table-container" style="display: none; max-height: 400px; overflow-y: auto;">
+                  <table class="table table-bordered">
+                      <thead>
+                          <tr>
+                              <th>Nom agent</th>
+                              <th>Prénom agent</th>
+                          </tr>
+                      </thead>
+                      <tbody id="missing-data-table-body">
+                          <!-- JavaScript will populate this table -->
+                      </tbody>
+                  </table>
+              </div>
+              
+              <div id="no-missing-data-message" style="display: none;">
+                  <p>Aucune donnée manquante.</p>
+              </div>
+          </div>
+          <div class="modal-footer">
+              <a href="{% url 'proceed_with_calculation' %}" class="btn btn-primary">Continuer avec le calcul</a>
+              <a href="{% url 'list_generated' %}" class="btn btn-secondary">Annuler l'opération</a>
+          </div>
+      </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const modal = new bootstrap.Modal(document.getElementById('missingDataModal'));
+  const missingData = "{{ missing_data|escapejs }}";
+  const missingDataMessage = document.getElementById('missing-data-message');
+  const tableContainer = document.getElementById('missing-data-table-container');
+  const noMissingDataMessage = document.getElementById('no-missing-data-message');
+  const tableBody = document.getElementById('missing-data-table-body');
+
+  if (missingData) {
+      const data = JSON.parse(missingData);
+
+      // Generate a message based on the missing data
+      let columnsMissing = {
+          Nom_agent: false,
+          Prenom_agent: false
+      };
+
+      data.forEach(row => {
+          if (!row["Nom agent"]) columnsMissing.Nom_agent = true;
+          if (!row["Prenom agent"]) columnsMissing.Prenom_agent = true;
+      });
+
+      let message = "Les données sont manquantes pour :<ul>";
+      if (columnsMissing.Nom_agent) message += "<li>Nom agent</li>";
+      if (columnsMissing.Prenom_agent) message += "<li>Prénom agent</li>";
+      message += "</ul>";
+
+      if (message) {
+          missingDataMessage.innerHTML = message;
+          tableContainer.style.display = 'block';
+
+          data.forEach(row => {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                  <td>${row["Nom agent"] || 'N/A'}</td>
+                  <td>${row["Prenom agent"] || 'N/A'}</td>
+              `;
+              tableBody.appendChild(tr);
+          });
+
+          noMissingDataMessage.style.display = 'none';
+      } else {
+          missingDataMessage.innerHTML = "<p>Aucune donnée manquante.</p>";
+          tableContainer.style.display = 'none';
+          noMissingDataMessage.style.display = 'block';
+      }
+      
+      modal.show();
+  }
+});
+</script>
+ <!-- Custom JS -->
+ <script>
+  document.getElementById('saveInDatabase').addEventListener('click', function() {
+      document.getElementById('upload-form').action = '{% url "upload_files" %}';  // Ensure this URL is correct
+      document.getElementById('upload-form').submit();
+  });
+
+  document.getElementById('calculateOnly').addEventListener('click', function() {
+      document.getElementById('upload-form').action = '{% url "proceed_without_storing" %}';  // Ensure this URL is correct
+      document.getElementById('upload-form').submit();
+  });
+</script>
+
+
 
 
       
@@ -389,6 +520,7 @@
   </main>
 
   
+
   <!--   Core JS Files   -->
   <script src="{% static 'listings/assets/js/core/popper.min.js' %}"></script>
   <script src="{% static 'listings/assets/js/core/bootstrap.min.js' %}"></script>
