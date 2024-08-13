@@ -193,136 +193,7 @@ def upload_files(request):
 
 # View for listing generated data
 from django.utils.dateparse import parse_date
-def proceed_without_storing(request):
-    if request.method == 'POST' and request.FILES:
-        # Récupérer les fichiers téléchargés
-        agents_file = request.FILES['agents_file']
-        historique_file = request.FILES['historique_file']
-        demandes_file = request.FILES['demandes_file']
-            
-        # Lire les fichiers Excel
-        agents_df = pd.read_excel(agents_file)
-        historique_df = pd.read_excel(historique_file)
-        demandes_df = pd.read_excel(demandes_file)
 
-        # Retrieve dates directly from the POST request
-        date_debut_sejour = request.POST.get('date_debut_sejour')
-        date_fin_sejour = request.POST.get('date_fin_sejour')
-
-
-        # Check if dates are provided
-        if not date_debut_sejour or not date_fin_sejour:
-            messages.error(request, "Les dates de début et de fin de séjour sont requises.")
-            return redirect('list_generated')  # Replace with the actual view name
-        
-        try:
-            # Filter rows based on date_debut_sejour and date_fin_sejour
-            demandes_df = demandes_df[
-                (demandes_df['Date debut sejour'] == date_debut_sejour) &
-                (demandes_df['Date fin sejour'] == date_fin_sejour)
-            ]
-
-            # Create a new DataFrame 'demandes_traiter' that contains the exact content of the 'demandes' file
-            demandes_traiter_df = demandes_df.copy()
-
-            # Step 4: Filter Rows
-            demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Site'] == 'Khouribga']
-            demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Nature Periode'] == 'Bloquée']
-            demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Statut'] == 'En attente de traitement']
-
-            # Step 5: Add retraite Column and Calculate Its Values
-            from datetime import datetime
-            demandes_traiter_df = demandes_traiter_df.merge(
-                agents_df[['matricule', 'date_embauche', 'sit_fam', 'NOMBRE_ENF', 'date_debut_retraite']],
-                left_on='Matricule', right_on='matricule', how='left'
-            )
-
-            # Convert dates to datetime
-            demandes_traiter_df['date_embauche'] = pd.to_datetime(demandes_traiter_df['date_embauche'], format='%d/%m/%Y')
-            demandes_traiter_df['Date debut sejour'] = pd.to_datetime(demandes_traiter_df['Date debut sejour'], format='%d/%m/%Y')
-            demandes_traiter_df['date_debut_retraite'] = pd.to_datetime(demandes_traiter_df['date_debut_retraite'], format='%d/%m/%Y')
-            
-            # Check for missing values in required columns of demandes_traiter_df
-            required_columns = ['Matricule', 'date_embauche', 'sit_fam', 'NOMBRE_ENF']
-            
-            demandes_traiter_df = demandes_traiter_df.dropna(subset=required_columns)
-            messages.success(request, "L'opération a été effectuée avec succès après avoir ignoré les données manquantes. Les calculs ont été poursuivis avec les données disponibles.")
-                
-
-            # Filter expired date_debut_retraite
-            save_rejected_records(demandes_traiter_df, request)
-            demandes_traiter_df = demandes_traiter_df[
-                (demandes_traiter_df['date_debut_retraite'] > demandes_traiter_df['Date debut sejour']) |
-                (demandes_traiter_df['date_debut_retraite'].isna())
-            ]
-
-            if demandes_traiter_df.empty:
-                messages.info(request, "Aucun enregistrement ne correspond aux critères après filtrage.")
-                return redirect('list_generated')
-
-          
-
-            # Define the fixed date: June 1st of the current year
-            fixed_date = datetime(datetime.now().year, 6, 1)
-
-            # Calculate the difference in months
-            demandes_traiter_df['A'] = demandes_traiter_df['date_embauche'].apply(
-                lambda x: relativedelta(fixed_date, x).years * 12 + relativedelta(fixed_date, x).months
-            )
-
-
-            # Calculate S
-            def calculate_S(row):
-                sit_fam = row['sit_fam'].strip().lower()
-                nbr_enf = row['NOMBRE_ENF']
-
-                if sit_fam not in ['célibataire']:
-                    if nbr_enf <= 3:
-                        return 5 + nbr_enf * 5
-                    else:
-                        return 20
-                else:
-                    return 0
-
-            demandes_traiter_df['S'] = demandes_traiter_df.apply(calculate_S, axis=1)
-
-            # Calculate D
-            def calculate_D(row, historique_df):
-                matricule = row['Matricule']
-                matricule_rows = historique_df[historique_df['Matricule'] == matricule]
-                total_D = 0
-
-                for index, hist_row in matricule_rows.iterrows():
-                    date_de_debut_sejour = hist_row['Date debut sejour']
-                    year_difference = datetime.now().year - date_de_debut_sejour.year
-
-                    if year_difference == 1:
-                        total_D += 140
-                    elif year_difference == 2:
-                        total_D += 90
-                    elif year_difference == 3:
-                        total_D += 50
-                    elif year_difference == 4:
-                        total_D += 20
-
-                return total_D
-
-            demandes_traiter_df['D'] = demandes_traiter_df.apply(calculate_D, axis=1, historique_df=historique_df)
-            demandes_traiter_df['D'] = demandes_traiter_df['D'].fillna(0)
-
-            # Calculate P
-            demandes_traiter_df['P'] = 2 * (demandes_traiter_df['A'] + demandes_traiter_df['S']) - demandes_traiter_df['D']
-
-            # Sorting based on 'P'
-            demandes_traiter_df = demandes_traiter_df.sort_values(by=['P', 'A', 'S', 'Date de la demande'], ascending=[False, False, False, False])
-
-            # Save the DataFrame to the database
-            save_to_database(demandes_traiter_df,request)
-            messages.success(request, "Le traitement des fichiers a été effectué avec succès.")
-        except Exception as e:
-            messages.error(request, f"Une erreur est survenue : {str(e)}")
-
-    return redirect('list_generated')  # Replace with the actual view name
 
 
 
@@ -524,6 +395,7 @@ def save_rejected_records(df, request):
         messages.success(request, f"{len(rejected_records)} enregistrements ont été ajoutés avec succès (Consultez les tableaux du tableau de bord).")
     else:
         messages.info(request, "Aucun enregistrement à insérer.")
+
 
 
 
@@ -897,7 +769,141 @@ def process_files(request):
 
     return redirect('list_generated')  # Replace with the actual view name
 
+def proceed_without_storing(request):
+    if request.method == 'POST' and request.FILES:
+        # Récupérer les fichiers téléchargés
+        agents_file = request.FILES['agents_file']
+        historique_file = request.FILES['historique_file']
+        demandes_file = request.FILES['demandes_file']
+            
+        # Lire les fichiers Excel
+        agents_df = pd.read_excel(agents_file)
+        historique_df = pd.read_excel(historique_file)
+        demandes_df = pd.read_excel(demandes_file)
 
+        # Retrieve dates directly from the POST request
+        date_debut_sejour = request.POST.get('date_debut_sejour')
+        date_fin_sejour = request.POST.get('date_fin_sejour')
+        print(" here is the debug dates:")
+        print(date_debut_sejour)
+        print(date_fin_sejour)
+
+
+        # Check if dates are provided
+        if not date_debut_sejour or not date_fin_sejour:
+            messages.error(request, "Les dates de début et de fin de séjour sont requises.")
+            return redirect('list_generated')  # Replace with the actual view name
+        
+        try:
+            # Filter rows based on date_debut_sejour and date_fin_sejour
+            demandes_df = demandes_df[
+                (demandes_df['Date debut sejour'] == date_debut_sejour) &
+                (demandes_df['Date fin sejour'] == date_fin_sejour)
+            ]
+
+            # Create a new DataFrame 'demandes_traiter' that contains the exact content of the 'demandes' file
+            demandes_traiter_df = demandes_df.copy()
+
+            # Step 4: Filter Rows
+            demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Site'] == 'Khouribga']
+            demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Nature Periode'] == 'Bloquée']
+            demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Statut'] == 'En attente de traitement']
+
+            # Step 5: Add retraite Column and Calculate Its Values
+            from datetime import datetime
+            demandes_traiter_df = demandes_traiter_df.merge(
+                agents_df[['matricule', 'date_embauche', 'sit_fam', 'NOMBRE_ENF', 'date_debut_retraite']],
+                left_on='Matricule', right_on='matricule', how='left'
+            )
+
+            # Convert dates to datetime
+            demandes_traiter_df['date_embauche'] = pd.to_datetime(demandes_traiter_df['date_embauche'], format='%d/%m/%Y')
+            demandes_traiter_df['Date debut sejour'] = pd.to_datetime(demandes_traiter_df['Date debut sejour'], format='%d/%m/%Y')
+            demandes_traiter_df['Date fin sejour'] = pd.to_datetime(demandes_traiter_df['Date fin sejour'], format='%d/%m/%Y')
+            demandes_traiter_df['date_debut_retraite'] = pd.to_datetime(demandes_traiter_df['date_debut_retraite'], format='%d/%m/%Y')
+            
+            # Check for missing values in required columns of demandes_traiter_df
+            required_columns = ['Matricule', 'date_embauche', 'sit_fam', 'NOMBRE_ENF']
+            
+            demandes_traiter_df = demandes_traiter_df.dropna(subset=required_columns)
+            messages.success(request, "L'opération a été effectuée avec succès après avoir ignoré les données manquantes. Les calculs ont été poursuivis avec les données disponibles.")
+                
+
+            # Filter expired date_debut_retraite
+            save_rejected_records(demandes_traiter_df, request)
+
+            demandes_traiter_df = demandes_traiter_df[
+                (demandes_traiter_df['date_debut_retraite'] > demandes_traiter_df['Date debut sejour']) |
+                (demandes_traiter_df['date_debut_retraite'].isna())
+            ]
+
+            if demandes_traiter_df.empty:
+                messages.info(request, "Aucun enregistrement ne correspond aux critères après filtrage.")
+                return redirect('list_generated')
+
+          
+
+            # Define the fixed date: June 1st of the current year
+            fixed_date = datetime(datetime.now().year, 6, 1)
+
+            # Calculate the difference in months
+            demandes_traiter_df['A'] = demandes_traiter_df['date_embauche'].apply(
+                lambda x: relativedelta(fixed_date, x).years * 12 + relativedelta(fixed_date, x).months
+            )
+
+
+            # Calculate S
+            def calculate_S(row):
+                sit_fam = row['sit_fam'].strip().lower()
+                nbr_enf = row['NOMBRE_ENF']
+
+                if sit_fam not in ['célibataire']:
+                    if nbr_enf <= 3:
+                        return 5 + nbr_enf * 5
+                    else:
+                        return 20
+                else:
+                    return 0
+
+            demandes_traiter_df['S'] = demandes_traiter_df.apply(calculate_S, axis=1)
+
+            # Calculate D
+            def calculate_D(row, historique_df):
+                matricule = row['Matricule']
+                matricule_rows = historique_df[historique_df['Matricule'] == matricule]
+                total_D = 0
+
+                for index, hist_row in matricule_rows.iterrows():
+                    date_de_debut_sejour = hist_row['Date debut sejour']
+                    year_difference = datetime.now().year - date_de_debut_sejour.year
+
+                    if year_difference == 1:
+                        total_D += 140
+                    elif year_difference == 2:
+                        total_D += 90
+                    elif year_difference == 3:
+                        total_D += 50
+                    elif year_difference == 4:
+                        total_D += 20
+
+                return total_D
+
+            demandes_traiter_df['D'] = demandes_traiter_df.apply(calculate_D, axis=1, historique_df=historique_df)
+            demandes_traiter_df['D'] = demandes_traiter_df['D'].fillna(0)
+
+            # Calculate P
+            demandes_traiter_df['P'] = 2 * (demandes_traiter_df['A'] + demandes_traiter_df['S']) - demandes_traiter_df['D']
+
+            # Sorting based on 'P'
+            demandes_traiter_df = demandes_traiter_df.sort_values(by=['P', 'A', 'S', 'Date de la demande'], ascending=[False, False, False, False])
+
+            # Save the DataFrame to the database
+            save_to_database(demandes_traiter_df,request)
+            messages.success(request, "Le traitement des fichiers a été effectué avec succès.")
+        except Exception as e:
+            messages.error(request, f"Une erreur est survenue : {str(e)}")
+
+    return redirect('list_generated')  # Replace with the actual view name
 
 
 from io import BytesIO
@@ -1683,4 +1689,103 @@ def download_pdf_demandes_traiter(request):
     
     response = HttpResponse(buffer.read(), content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="demandes_traiter.pdf"'
+    return response
+
+
+import pandas as pd
+from django.http import HttpResponse
+
+def download_excel(request, ville, type_de_vue):
+    # Retrieve data from the database
+    data = get_data_from_database(ville, type_de_vue)
+    df = pd.DataFrame(data)
+    
+    # Print column names to debug
+    print("DataFrame columns:", df.columns.tolist())
+    
+    # Sort the DataFrame based on 'P' in descending order
+    sorted_table = df.sort_values(by=['P'], ascending=[False]).reset_index(drop=True)
+    
+    # Define columns of interest based on the model
+    # Include all columns from the model
+    columns_of_interest = [
+        'numero_demande', 'ville', 'nom_agent', 'prenom_agent', 'matricule',
+        'date_debut_sejour', 'date_fin_sejour', 'type_de_vue', 'A', 'D', 'S', 'P'
+    ]
+    
+    # Check if all columns exist in the DataFrame
+    missing_cols = [col for col in columns_of_interest if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing columns: {missing_cols}")
+
+    # Prepare the selected data
+    selected_data = sorted_table[columns_of_interest].copy()
+    selected_data['date_debut_sejour'] = pd.to_datetime(selected_data['date_debut_sejour']).dt.strftime('%Y-%m-%d')
+    selected_data['date_fin_sejour'] = pd.to_datetime(selected_data['date_fin_sejour']).dt.strftime('%Y-%m-%d')
+
+    # Create an Excel writer object and save the DataFrame to an Excel file in memory
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="{ville}_{type_de_vue}.xlsx"'
+    
+    with pd.ExcelWriter(response, engine='xlsxwriter') as writer:
+        selected_data.to_excel(writer, sheet_name='Liste', index=False)
+        # Adjust column width (optional)
+        for column in selected_data:
+            col_idx = selected_data.columns.get_loc(column)
+            writer.sheets['Liste'].set_column(col_idx, col_idx, max(selected_data[column].astype(str).map(len).max(), len(column)))
+
+    return response
+def download_all_demandes_excel(request):
+    # Retrieve all rows from the DemandesTraiter table
+    demandes = DemandesTraiter.objects.all()
+
+    # Convert the queryset to a DataFrame
+    data = list(demandes.values())
+    df = pd.DataFrame(data)
+
+    # Define the filename in French
+    filename = 'toutes_les_demandes_traitées.xlsx'
+
+    # Create an HttpResponse object with the appropriate headers
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    # Use pandas to create an Excel file in memory
+    with pd.ExcelWriter(response, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name='DemandesTraiter', index=False)
+        # Adjust column width (optional)
+        for column in df:
+            col_idx = df.columns.get_loc(column)
+            writer.sheets['DemandesTraiter'].set_column(col_idx, col_idx, max(df[column].astype(str).map(len).max(), len(column)))
+
+    return response
+
+
+def download_all_rejected_demandes_excel(request):
+    # Retrieve all rejected demandes
+    rejected_demandes = RejectedDemandesRetrait.objects.all()
+    df = pd.DataFrame(list(rejected_demandes.values()))
+
+    # Define columns of interest based on the model
+    columns_of_interest = ['numero_demande', 'ville', 'nom_agent', 'prenom_agent', 'matricule',
+                           'date_debut_sejour', 'date_fin_sejour', 'type_de_vue', 'date_debut_retraite', 'date_de_la_demande']
+
+    # Prepare the selected data
+    selected_data = df[columns_of_interest].copy()
+    selected_data['date_debut_sejour'] = pd.to_datetime(selected_data['date_debut_sejour']).dt.strftime('%Y-%m-%d')
+    selected_data['date_fin_sejour'] = pd.to_datetime(selected_data['date_fin_sejour']).dt.strftime('%Y-%m-%d')
+    selected_data['date_debut_retraite'] = pd.to_datetime(selected_data['date_debut_retraite']).dt.strftime('%Y-%m-%d')
+    selected_data['date_de_la_demande'] = pd.to_datetime(selected_data['date_de_la_demande']).dt.strftime('%Y-%m-%d')
+
+    # Create an Excel writer object and save the DataFrame to an Excel file in memory
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="toutes_Demandes_Rejetees.xlsx"'
+    
+    with pd.ExcelWriter(response, engine='xlsxwriter') as writer:
+        selected_data.to_excel(writer, sheet_name='Liste', index=False)
+        # Adjust column width (optional)
+        for column in selected_data:
+            col_idx = selected_data.columns.get_loc(column)
+            writer.sheets['Liste'].set_column(col_idx, col_idx, max(selected_data[column].astype(str).map(len).max(), len(column)))
+
     return response

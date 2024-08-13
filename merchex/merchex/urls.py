@@ -49,7 +49,9 @@ urlpatterns = [
     path('delete-all-demandes-rejetees/', views.delete_all_demandes_rejetees, name='delete_all_demandes_rejetees'),
     path('download-pdf-demandes-traiter/', views.download_pdf_demandes_traiter, name='download_pdf_demandes_traiter'),
     path('download-pdf-rejected-demandes/', views.download_pdf_rejected_demandes, name='download_pdf_rejected_demandes'),
-
+    path('download-excel/<str:ville>/<str:type_de_vue>/', views.download_excel, name='download_excel'),
+     path('download-all-demandes-excel/', views.download_all_demandes_excel, name='download_all_demandes_excel'),
+     path('download-all-rejected-demandes-excel/', views.download_all_rejected_demandes_excel, name='download_all_rejected_demandes_excel'),
 
     
     

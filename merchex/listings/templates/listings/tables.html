@@ -249,9 +249,6 @@
             <div class="card-body px-0 pt-0 pb-2">
               <div class="table-responsive p-0">
 
-
-                
-
                 <div class="container mt-5">
                   <div class="upload-section">
                   
@@ -328,49 +325,53 @@
                   <div class="table-container">
                     
                     <table class="table table-bordered table-hover align-items-center mb-0">
-                        <thead>
-                            <tr>
-                                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Ville</th>
-                                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Type de vue</th>
-                                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Télécharge la liste</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% if data %}
-                                {% for ville, types in data.items %}
-                                    {% for type_de_vue in types %}
-                                    <tr style="background-color: white; border-bottom: 2px solid #c4e1c1;">
-                                        {% if forloop.first %}
-                                        <td class="align-middle" rowspan="{{ types|length }}" style="border-right: 2px solid #c4e1c1;">
-                                            <div class="d-flex px-2 py-1">
-                                                <div class="d-flex flex-column justify-content-center">
-                                                    <h6 class="mb-0 text-sm">{{ ville }}</h6>
-                                                </div> 
-                                            </div>
-                                        </td>
-                                        {% endif %}
-                                        <td class="align-middle text-center text-sm">
-                                            <span class="badge badge-sm bg-gradient-secondary">{{ type_de_vue }}</span>
-                                        </td>
-                                        <td class="align-middle text-center">
-                                            {% if type_de_vue %}
-                                                <a href="{% url 'download_pdf' ville type_de_vue %}" class="btn btn-link text-dark text-sm mb-0 px-0 ms-4">
-                                                    <i class="fas fa-file-pdf text-lg me-1"></i> PDF
-                                                </a>
-                                            {% else %}
-                                                <span class="text-muted">N/A</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                {% endfor %}
-                            {% else %}
-                                <tr>
-                                    <td colspan="3" class="text-center">Aucune donnée disponible</td>
-                                </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
+                      <thead>
+                          <tr>
+                              <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Ville</th>
+                              <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Type de vue</th>
+                              <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Télécharge la liste</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          {% if data %}
+                              {% for ville, types in data.items %}
+                                  {% for type_de_vue in types %}
+                                  <tr style="background-color: white; border-bottom: 2px solid #c4e1c1;">
+                                      {% if forloop.first %}
+                                      <td class="align-middle" rowspan="{{ types|length }}" style="border-right: 2px solid #c4e1c1;">
+                                          <div class="d-flex px-2 py-1">
+                                              <div class="d-flex flex-column justify-content-center">
+                                                  <h6 class="mb-0 text-sm">{{ ville }}</h6>
+                                              </div> 
+                                          </div>
+                                      </td>
+                                      {% endif %}
+                                      <td class="align-middle text-center text-sm">
+                                          <span class="badge badge-sm bg-gradient-secondary">{{ type_de_vue }}</span>
+                                      </td>
+                                      <td class="align-middle text-center">
+                                          {% if type_de_vue %}
+                                              <a href="{% url 'download_pdf' ville type_de_vue %}" class="btn btn-link text-dark text-sm mb-0 px-0 ms-4">
+                                                  <i class="fas fa-file-pdf text-lg me-1"></i> PDF
+                                              </a>
+                                              <a href="{% url 'download_excel' ville type_de_vue %}" class="btn btn-link text-dark text-sm mb-0 px-0 ms-4">
+                                                  <i class="fas fa-file-excel text-lg me-1"></i> Excel
+                                              </a>
+                                          {% else %}
+                                              <span class="text-muted">N/A</span>
+                                          {% endif %}
+                                      </td>
+                                  </tr>
+                                  {% endfor %}
+                              {% endfor %}
+                          {% else %}
+                              <tr>
+                                  <td colspan="3" class="text-center">Aucune donnée disponible</td>
+                              </tr>
+                          {% endif %}
+                      </tbody>
+                  </table>
+                  
                 </div>
                 
                 

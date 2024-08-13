@@ -489,46 +489,52 @@
           <div class="mb-3">
            <!-- Button to download demandes_traiter.pdf -->
           <a href="{% url 'download_pdf_demandes_traiter' %}" class="btn btn-primary">Télécharger PDF des Demandes Traitées</a>
-
+          <a href="{% url 'download_all_demandes_excel' %}" class="btn btn-primary">Télécharger Excel</a>
 
           </div>
-          <!-- Demandes Traiter Table -->
-          <table class="table table-hover table-bordered border border-gray-300 bg-white" id="demandesTraiterTable">
-            <thead class="bg-gradient-secondary text-white text-uppercase text-center">
-              <tr>
-                <th class="px-4 py-2">Numéro de la demande</th>
-                <th class="px-4 py-2">Ville</th>
-                <th class="px-4 py-2">Nom de l'agent</th>
-                <th class="px-4 py-2">Prénom de l'agent</th>
-                <th class="px-4 py-2">Matricule</th>
-                <th class="px-4 py-2">Date de début de séjour</th>
-                <th class="px-4 py-2">Date de fin de séjour</th>
-                <th class="px-4 py-2">Type de vue</th>
-                <th class="px-4 py-2">A</th>
-                <th class="px-4 py-2">D</th>
-                <th class="px-4 py-2">S</th>
-                <th class="px-4 py-2">P</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for demande in demandes %}
-              <tr>
-                <td class="text-sm px-4 py-2">{{ demande.numero_demande }}</td>
-                <td class="text-sm px-4 py-2">{{ demande.ville }}</td>
-                <td class="text-sm px-4 py-2">{{ demande.nom_agent }}</td>
-                <td class="text-sm px-4 py-2">{{ demande.prenom_agent }}</td>
-                <td class="text-sm px-4 py-2">{{ demande.matricule }}</td>
-                <td class="text-sm px-4 py-2">{{ demande.date_debut_sejour }}</td>
-                <td class="text-sm px-4 py-2">{{ demande.date_fin_sejour }}</td>
-                <td class="text-sm px-4 py-2">{{ demande.type_de_vue }}</td>
-                <td class="text-sm px-4 py-2">{{ demande.A }}</td>
-                <td class="text-sm px-4 py-2">{{ demande.D }}</td>
-                <td class="text-sm px-4 py-2">{{ demande.S }}</td>
-                <td class="text-sm px-4 py-2">{{ demande.P }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        
+        
+        {% if not demandes %}
+            <p class="text-center text-muted">Aucune donnée à afficher</p>
+        {% else %}
+            <table class="table table-hover table-bordered border border-gray-300 bg-white" id="demandesTraiterTable">
+                <thead class="bg-gradient-secondary text-white text-uppercase text-center">
+                    <tr>
+                        <th class="px-4 py-2">Numéro de la demande</th>
+                        <th class="px-4 py-2">Ville</th>
+                        <th class="px-4 py-2">Nom de l'agent</th>
+                        <th class="px-4 py-2">Prénom de l'agent</th>
+                        <th class="px-4 py-2">Matricule</th>
+                        <th class="px-4 py-2">Date de début de séjour</th>
+                        <th class="px-4 py-2">Date de fin de séjour</th>
+                        <th class="px-4 py-2">Type de vue</th>
+                        <th class="px-4 py-2">A</th>
+                        <th class="px-4 py-2">D</th>
+                        <th class="px-4 py-2">S</th>
+                        <th class="px-4 py-2">P</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for demande in demandes %}
+                        <tr>
+                            <td class="text-sm px-4 py-2">{{ demande.numero_demande }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.ville }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.nom_agent }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.prenom_agent }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.matricule }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.date_debut_sejour }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.date_fin_sejour }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.type_de_vue }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.A }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.D }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.S }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.P }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+        
         </div>
       </div>
     </div>
@@ -567,54 +573,64 @@
     <div class="card-body p-3">
       <div class="bg-white border-radius-lg py-3 pe-1 mb-3">
         <div class="table-responsive">
-          <!-- Search Input -->
-          <div class="mb-3 mt-4">
-            <label for="searchRejectedInput" class="form-label">Rechercher</label>
-            <input type="text" id="searchRejectedInput" onkeyup="searchRejectedTable()" class="form-control" placeholder="Rechercher dans la table...">
-            <!-- Delete All Button -->
-            <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllDemandesRejeteesModal">
-              Supprimer Tout
-            </button>
-            <!-- Download PDF Button for Rejected Demandes -->
-            <div class="mb-3">
-              
-            <!-- Button to download demandes_rejetees.pdf -->
-            <a href="{% url 'download_pdf_rejected_demandes' %}" class="btn btn-primary">Télécharger PDF des Demandes Rejetées</a>
-            </div>
-          </div>
-          <!-- Rejected Demandes Table -->
-          <table class="table table-hover table-bordered border border-gray-300 bg-white" id="rejectedDemandesTable">
-            <thead class="bg-gradient-secondary text-white text-uppercase text-center">
-              <tr>
-                <th class="px-4 py-2">Numéro de la demande</th>
-                <th class="px-4 py-2">Ville</th>
-                <th class="px-4 py-2">Nom de l'agent</th>
-                <th class="px-4 py-2">Prénom de l'agent</th>
-                <th class="px-4 py-2">Matricule</th>
-                <th class="px-4 py-2">Date de début de séjour</th>
-                <th class="px-4 py-2">Date de fin de séjour</th>
-                <th class="px-4 py-2">Type de vue</th>
-                <th class="px-4 py-2">Date de début de retraite</th>
-                <th class="px-4 py-2">Date de la demande</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for rejected in rejected_demandes %}
-              <tr>
-                <td class="text-sm px-4 py-2">{{ rejected.numero_demande }}</td>
-                <td class="text-sm px-4 py-2">{{ rejected.ville }}</td>
-                <td class="text-sm px-4 py-2">{{ rejected.nom_agent }}</td>
-                <td class="text-sm px-4 py-2">{{ rejected.prenom_agent }}</td>
-                <td class="text-sm px-4 py-2">{{ rejected.matricule }}</td>
-                <td class="text-sm px-4 py-2">{{ rejected.date_debut_sejour }}</td>
-                <td class="text-sm px-4 py-2">{{ rejected.date_fin_sejour }}</td>
-                <td class="text-sm px-4 py-2">{{ rejected.type_de_vue }}</td>
-                <td class="text-sm px-4 py-2">{{ rejected.date_debut_retraite }}</td>
-                <td class="text-sm px-4 py-2">{{ rejected.date_demande }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+         <!-- Search Input -->
+<div class="mb-3 mt-4">
+  <label for="searchRejectedInput" class="form-label">Rechercher</label>
+  <input type="text" id="searchRejectedInput" onkeyup="searchRejectedTable()" class="form-control" placeholder="Rechercher dans la table...">
+
+  <!-- Delete All Button -->
+  <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllDemandesRejeteesModal">
+      Supprimer Tout
+  </button>
+  
+  <!-- Download PDF Button for Rejected Demandes -->
+  <div class="mb-3">
+      <!-- Button to download demandes_rejetees.pdf -->
+      <a href="{% url 'download_pdf_rejected_demandes' %}" class="btn btn-primary">Télécharger PDF des Demandes Rejetées</a>
+      
+      <!-- Button to download rejected_demandes.xlsx -->
+      <a href="{% url 'download_all_rejected_demandes_excel' %}" class="btn btn-success">Télécharger Excel des Demandes Rejetées</a>
+  </div>
+</div>
+
+<!-- Rejected Demandes Table -->
+{% if rejected_demandes %}
+  <table class="table table-hover table-bordered border border-gray-300 bg-white" id="rejectedDemandesTable">
+      <thead class="bg-gradient-secondary text-white text-uppercase text-center">
+          <tr>
+              <th class="px-4 py-2">Numéro de la demande</th>
+              <th class="px-4 py-2">Ville</th>
+              <th class="px-4 py-2">Nom de l'agent</th>
+              <th class="px-4 py-2">Prénom de l'agent</th>
+              <th class="px-4 py-2">Matricule</th>
+              <th class="px-4 py-2">Date de début de séjour</th>
+              <th class="px-4 py-2">Date de fin de séjour</th>
+              <th class="px-4 py-2">Type de vue</th>
+              <th class="px-4 py-2">Date de début de retraite</th>
+              <th class="px-4 py-2">Date de la demande</th>
+          </tr>
+      </thead>
+      <tbody>
+          {% for rejected in rejected_demandes %}
+          <tr>
+              <td class="text-sm px-4 py-2">{{ rejected.numero_demande }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.ville }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.nom_agent }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.prenom_agent }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.matricule }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.date_debut_sejour }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.date_fin_sejour }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.type_de_vue }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.date_debut_retraite }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.date_de_la_demande }}</td>
+          </tr>
+          {% endfor %}
+      </tbody>
+  </table>
+{% else %}
+  <p class="text-center text-muted">Aucune donnée à afficher</p>
+{% endif %}
+
         </div>
       </div>
     </div>
