@@ -1789,3 +1789,984 @@ def download_all_rejected_demandes_excel(request):
             writer.sheets['Liste'].set_column(col_idx, col_idx, max(selected_data[column].astype(str).map(len).max(), len(column)))
 
     return response
+
+
+
+#################Periode Libre##########################
+
+def ListsLibre(request):
+    # Your logic for this view
+    return render(request, 'listings/listesLibres.html')
+
+def filter_and_rank_agents(request):
+    if request.method == 'POST':
+        form = CalculForm(request.POST)
+        if form.is_valid():
+            date_debut_sejour = form.cleaned_data['date_debut_sejour']
+            date_fin_sejour = form.cleaned_data['date_fin_sejour']
+            
+            try:
+
+                historique_queryset = Historique.objects.all().values()
+                agents_queryset = Agent.objects.all().values()
+                demandes_queryset = Demande.objects.all().values()
+                
+                # Convert the querysets to DataFrames
+                historique_df = pd.DataFrame(list(historique_queryset))
+                agents_df = pd.DataFrame(list(agents_queryset))
+                demandes_df = pd.DataFrame(list(demandes_queryset))
+
+                # Rename columns for consistency
+                historique_df.rename(columns={
+                    'ville': 'Ville',
+                    'nom_agent': 'Nom agent',
+                    'prenom_agent': 'Prenom agent',
+                    'matricule': 'Matricule',
+                    'date_demande': 'Date de la demande',
+                    'date_debut_sejour': 'Date debut sejour',
+                    'date_fin_sejour': 'Date fin sejour',
+                    'nombre_nuites': 'Nombre de nuites'
+                }, inplace=True)
+
+                agents_df.rename(columns={
+                    'matricule': 'Matricule',
+                    'nom_prenom': 'Nom Prenom',
+                    'date_naissance': 'Date Naissance',
+                    'date_embauche': 'Date Embauche',
+                    'nombre_enf': 'Nombre Enfants',
+                    'date_debut_retraite': 'date_debut_retraite'
+                }, inplace=True)
+
+                demandes_df.rename(columns={
+                    'numero_demande': 'Numero Demande',
+                    'ville': 'Ville',
+                    'nom_agent': 'Nom agent',
+                    'prenom_agent': 'Prenom agent',
+                    'matricule': 'Matricule',
+                    'date_demande': 'Date de la demande',
+                    'date_debut_sejour': 'Date debut sejour',
+                    'date_fin_sejour': 'Date fin sejour',
+                    'type_de_vue': 'Type de vue',
+                    'nombre_nuites': 'Nombre de nuites',
+                    'statut': 'Statut',
+                    'nature_periode': 'Nature Periode',
+                    'site': 'Site'
+                }, inplace=True)
+
+                # Filter demandes based on provided date range
+                demandes_df = demandes_df[
+                    (demandes_df['Date debut sejour'] >= date_debut_sejour) &
+                    (demandes_df['Date fin sejour'] <= date_fin_sejour)
+                ]
+               
+                # Additional filtering
+                demandes_traiter_df = demandes_df.copy()
+                demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Site'] == 'Khouribga']
+                demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Nature Periode'] == 'Libre']
+                demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Statut'] == 'En attente de traitement']
+
+                # Convert date columns to datetime
+                agents_df['Date Embauche'] = pd.to_datetime(agents_df['Date Embauche'], format='%d/%m/%Y')
+                agents_df['Date Naissance'] = pd.to_datetime(agents_df['Date Naissance'], errors='coerce')
+                historique_df['Date debut sejour'] = pd.to_datetime(historique_df['Date debut sejour'], errors='coerce')
+                historique_df['Date fin sejour'] = pd.to_datetime(historique_df['Date fin sejour'], errors='coerce')
+
+                # Process and merge data
+                demandes_traiter_df = demandes_traiter_df.merge(
+                    agents_df[['Matricule', 'Date Embauche', 'Nombre Enfants', 'Date Naissance','date_debut_retraite']],
+                    left_on='Matricule', right_on='Matricule', how='left'
+                )
+                demandes_traiter_df['date_debut_retraite'] = pd.to_datetime(demandes_traiter_df['date_debut_retraite'], format='%d/%m/%Y')
+
+                # Filter expired date_debut_retraite
+                save_rejected_records(demandes_traiter_df, request)
+                demandes_traiter_df = demandes_traiter_df[
+                    (demandes_traiter_df['date_debut_retraite'] > demandes_traiter_df['Date debut sejour']) |
+                    (demandes_traiter_df['date_debut_retraite'].isna())
+                ]
+
+                if demandes_traiter_df.empty:
+                  messages.info(request, "Aucun enregistrement ne correspond aux critères après filtrage.")
+                  return redirect('libre_generated')
+            
+                # Calculate additional fields
+                def calculate_anciennete(date_embauche):
+                    return relativedelta(datetime.now(), date_embauche).years * 12 + relativedelta(datetime.now(), date_embauche).months
+
+                def calculate_age(date_naissance):
+                    return relativedelta(datetime.now(), date_naissance).years
+                print("first")
+                print(demandes_traiter_df[['Date Embauche', 'Date Naissance']].isnull().sum())
+
+                demandes_traiter_df['Anciennete'] = demandes_traiter_df['Date Embauche'].apply(calculate_anciennete)
+                demandes_traiter_df['Age'] = demandes_traiter_df['Date Naissance'].apply(calculate_age)
+                print("second")
+                def calculate_sejour_count(matricule, historique_df):
+                    return len(historique_df[historique_df['Matricule'] == matricule])
+
+                def calculate_last_sejour(matricule, historique_df):
+                    agent_hist = historique_df[historique_df['Matricule'] == matricule]
+                    if agent_hist.empty:
+                        return pd.NaT
+                    return agent_hist['Date debut sejour'].max()
+
+                demandes_traiter_df['Nombre Sejours'] = demandes_traiter_df['Matricule'].apply(lambda x: calculate_sejour_count(x, historique_df))
+                demandes_traiter_df['Dernier Sejour'] = demandes_traiter_df['Matricule'].apply(lambda x: calculate_last_sejour(x, historique_df))
+
+                # Handle NaT values in 'Dernier Sejour' column
+                demandes_traiter_df['Dernier Sejour'] = demandes_traiter_df['Dernier Sejour'].fillna(pd.Timestamp.min)
+
+                # Sorting agents according to the specified criteria
+                def custom_sort(row):
+                    if row['Nombre Sejours'] == 0:
+                        return (0, -row['Anciennete'], -row['Age'], -row['Nombre Enfants'])
+                    else:
+                        return (
+                            1,  # Priorité aux agents avec des séjours
+                            row['Nombre Sejours'],  # Tri par nombre de séjours
+                            row['Dernier Sejour'],  # Dernier séjour le plus loin en premier
+                            -row['Anciennete'],  # Ancienneté en mois
+                            -row['Age'],  # Âge
+                            -row['Nombre Enfants']  # Nombre d'enfants
+                        )
+
+                demandes_traiter_df['Sort Key'] = demandes_traiter_df.apply(custom_sort, axis=1)
+                demandes_traiter_df.sort_values(by='Sort Key', inplace=True)
+                demandes_traiter_df.drop(columns='Sort Key', inplace=True)
+                save_rejected_records(demandes_traiter_df, request)
+                # Update AgentsLibre with correct Dernier Sejour
+                AgentsLibre.objects.all().delete()  # Clean up old records
+                for index, row in demandes_traiter_df.iterrows():
+                    AgentsLibre.objects.create(
+                        numero_demande=row['Numero Demande'],
+                        ville=row['Ville'],
+                        nom_agent=row['Nom agent'],
+                        prenom_agent=row['Prenom agent'],
+                        matricule=row['Matricule'],
+                        date_debut_sejour=row['Date debut sejour'],
+                        date_fin_sejour=row['Date fin sejour'],
+                        type_de_vue=row['Type de vue'],
+                        nombre_enfants=row['Nombre Enfants'],
+                        age=row['Age'],
+                        anciennete=row['Anciennete'],
+                        nombre_sejour=row['Nombre Sejours'],
+                        dernier_sejour=row['Dernier Sejour']
+                    )
+
+                messages.success(request, "Les données ont été traitées et sauvegardées avec succès.")
+                return redirect('libre_generated')
+            except Exception as e:
+                messages.error(request, f"Une erreur est survenue: {str(e)}")
+                return redirect('libres_files')
+    else:
+        form = CalculForm()
+
+    return redirect('libre_generated')
+
+
+
+
+
+
+
+
+def libre_generated(request):
+    # Fetch distinct combinations of 'ville' and 'type_de_vue'
+    data = AgentsLibre.objects.values('ville', 'type_de_vue').distinct()
+    
+    # Group data by 'ville' and store unique 'type_de_vue' values
+
+    grouped_data = defaultdict(set)
+    for item in data:
+        grouped_data[item['ville']].add(item['type_de_vue'])
+    
+    # Convert set to list for rendering
+    context = {
+        'data': {ville: list(types) for ville, types in grouped_data.items()},
+        'demandesLibre': AgentsLibre.objects.all(),
+        'rejected_demandes': RejectedDemandesRetrait.objects.all(),
+    }
+    
+    return render(request, 'listings/listesLibres.html', context)
+
+
+
+from django.http import HttpResponse
+import pandas as pd
+from io import BytesIO
+from .models import AgentsLibre
+
+import pandas as pd
+from django.http import HttpResponse
+from .models import AgentsLibre
+
+def download_excel(request, ville, type_de_vue):
+    # Filter the AgentsLibre model based on the parameters
+    filtered_agents = AgentsLibre.objects.filter(ville=ville, type_de_vue=type_de_vue)
+
+    # Convert the queryset to a DataFrame
+    df = pd.DataFrame(list(filtered_agents.values()))
+
+    # Define columns of interest
+    columns_of_interest = ['numero_demande',  'matricule', 'nom_agent', 'prenom_agent','nombre_sejour','dernier_sejour', 'anciennete',  'age', 'nombre_enfants', 
+                           'ville','type_de_vue','date_debut_sejour', 'date_fin_sejour']
+    df = df[columns_of_interest]
+
+    # Create a BytesIO buffer to hold the Excel data
+    excel_buffer = BytesIO()
+    
+    # Write the DataFrame to the buffer
+    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False)
+    
+    # Seek to the beginning of the stream
+    excel_buffer.seek(0)
+
+    # Return the Excel file as a downloadable response
+    response = HttpResponse(excel_buffer, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="{ville}_{type_de_vue}.xlsx"'
+    
+    return response
+
+
+
+############################################
+
+def process_libres(request):
+    form = CalculForm(request.POST, request.FILES)
+    if form.is_valid():
+        # Retrieve date values from the form
+        date_debut_sejour = form.cleaned_data.get('date_debut_sejour')
+        date_fin_sejour = form.cleaned_data.get('date_fin_sejour')
+
+        # Check if dates are provided
+        if not date_debut_sejour or not date_fin_sejour:
+            messages.error(request, "Les dates de début et de fin de séjour sont requises.")
+            return redirect('list_generated')  # Replace with the actual view name
+        
+        try:
+            # Fetch data from the models
+            historique_queryset = Historique.objects.all().values()
+            agents_queryset = Agent.objects.all().values()
+            demandes_queryset = Demande.objects.all().values()
+            # Convert the querysets to DataFrames
+            historique_df = pd.DataFrame(list(historique_queryset))
+            agents_df = pd.DataFrame(list(agents_queryset))
+            demandes_df = pd.DataFrame(list(demandes_queryset))
+
+            # Column name mappings
+            historique_rename_dict = {
+                'ville': 'Ville',
+                'nom_agent': 'Nom agent',
+                'prenom_agent': 'Prenom agent',
+                'matricule': 'Matricule',
+                'date_demande': 'Date de la demande',
+                'date_debut_sejour': 'Date debut sejour',
+                'date_fin_sejour': 'Date fin sejour',
+                'nombre_nuites': 'Nombre de nuites',
+            }
+            historique_df.rename(columns=historique_rename_dict, inplace=True)
+
+            agents_rename_dict = {
+                'matricule': 'matricule',
+                'nom_prenom': 'nom_prenom',
+                'date_naissance': 'date_naissance',
+                'date_embauche': 'date_embauche',
+                'nombre_enf': 'NOMBRE_ENF',
+                'date_debut_retraite': 'date_debut_retraite',
+            }
+            agents_df.rename(columns=agents_rename_dict, inplace=True)
+
+            demandes_rename_dict = {
+                'numero_demande': 'N° Demande',
+                'ville': 'Ville',
+                'nom_agent': 'Nom agent',
+                'prenom_agent': 'Prenom agent',
+                'matricule': 'Matricule',
+                'date_demande': 'Date de la demande',
+                'date_debut_sejour': 'Date debut sejour',
+                'date_fin_sejour': 'Date fin sejour',
+                'type_de_vue': 'Type de vue',
+                'nombre_nuites': 'Nombre de nuites',
+                'statut': 'Statut',
+                'nature_periode': 'Nature Periode',
+                'site': 'Site'
+            }
+            demandes_df.rename(columns=demandes_rename_dict, inplace=True)
+
+            # Filter rows based on date_debut_sejour and date_fin_sejour
+            demandes_df = demandes_df[
+                (demandes_df['Date debut sejour'] == date_debut_sejour) &
+                (demandes_df['Date fin sejour'] == date_fin_sejour)
+            ]
+
+            # Create a new DataFrame 'demandes_traiter' that contains the exact content of the 'demandes' file
+            demandes_traiter_df = demandes_df.copy()
+
+            # Step 4: Filter Rows
+            demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Site'] == 'Khouribga']
+            demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Nature Periode'] == 'Bloquée']
+            demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Statut'] == 'En attente de traitement']
+
+            # Step 5: Add retraite Column and Calculate Its Values
+            from datetime import datetime
+            demandes_traiter_df = demandes_df.merge(
+                    historique_df[['Matricule', 'Date Embauche', 'Nombre Enfants', 'Date Debut Retraite', 'Date Naissance']],
+                    on='Matricule',
+                    how='left'
+                )
+
+            # Convert dates to datetime
+            demandes_traiter_df['date_embauche'] = pd.to_datetime(demandes_traiter_df['date_embauche'], format='%d/%m/%Y')
+            demandes_traiter_df['Date debut sejour'] = pd.to_datetime(demandes_traiter_df['Date debut sejour'], format='%d/%m/%Y')
+            demandes_traiter_df['date_debut_retraite'] = pd.to_datetime(demandes_traiter_df['date_debut_retraite'], format='%d/%m/%Y')
+
+            # Filter expired date_debut_retraite
+            save_rejected_records(demandes_traiter_df, request)
+            demandes_traiter_df = demandes_traiter_df[
+                (demandes_traiter_df['date_debut_retraite'] > demandes_traiter_df['Date debut sejour']) |
+                (demandes_traiter_df['date_debut_retraite'].isna())
+            ]
+
+            if demandes_traiter_df.empty:
+                messages.info(request, "Aucun enregistrement ne correspond aux critères après filtrage.")
+                return redirect('list_generated')
+
+            # Calculate A
+            from dateutil.relativedelta import relativedelta
+            demandes_traiter_df['A'] = demandes_traiter_df['date_embauche'].apply(lambda x: relativedelta(datetime.now(), x).years * 12 + relativedelta(datetime.now(), x).months)
+
+            # Calculate S
+            def calculate_S(row):
+                sit_fam = row['sit_fam'].strip().lower()
+                nbr_enf = row['NOMBRE_ENF']
+
+                if sit_fam not in ['célibataire']:
+                    if nbr_enf <= 3:
+                        return 5 + nbr_enf * 5
+                    else:
+                        return 20
+                else:
+                    return 0
+
+            demandes_traiter_df['S'] = demandes_traiter_df.apply(calculate_S, axis=1)
+
+            # Calculate D
+            def calculate_D(row, historique_df):
+                matricule = row['Matricule']
+                matricule_rows = historique_df[historique_df['Matricule'] == matricule]
+                total_D = 0
+
+                for index, hist_row in matricule_rows.iterrows():
+                    date_de_debut_sejour = hist_row['Date debut sejour']
+                    year_difference = datetime.now().year - date_de_debut_sejour.year
+
+                    if year_difference == 1:
+                        total_D += 140
+                    elif year_difference == 2:
+                        total_D += 90
+                    elif year_difference == 3:
+                        total_D += 50
+                    elif year_difference >= 4:
+                        total_D += 20
+
+                return total_D
+
+            demandes_traiter_df['D'] = demandes_traiter_df.apply(calculate_D, axis=1, historique_df=historique_df)
+            demandes_traiter_df['D'] = demandes_traiter_df['D'].fillna(0)
+
+            # Calculate P
+            demandes_traiter_df['P'] = 2 * (demandes_traiter_df['A'] + demandes_traiter_df['S']) - demandes_traiter_df['D']
+
+            # Sorting based on 'P'
+            demandes_traiter_df = demandes_traiter_df.sort_values(by=['P', 'A', 'S', 'Date de la demande'], ascending=[False, False, False, False])
+
+            # Save the DataFrame to the database
+            save_to_database(demandes_traiter_df,request)
+            messages.success(request, "Le traitement des fichiers a été effectué avec succès.")
+        except Exception as e:
+            messages.error(request, f"Une erreur est survenue : {str(e)}")
+
+    return redirect('list_generated')  # Replace with the actual view name
+
+
+
+
+
+def upload_files_and_rank(request):
+    if request.method == 'POST':
+        form = UploadFilesForm(request.POST, request.FILES)
+        if form.is_valid():
+            agents_file = request.FILES.get('agents_file')
+            historique_file = request.FILES.get('historique_file')
+            demandes_file = request.FILES.get('demandes_file')
+
+            # Process the agents file
+            if agents_file:
+                if not agents_file.name.endswith('.xlsx'):
+                    messages.error(request, "Format de fichier invalide pour les agents. Veuillez télécharger un fichier .xlsx.")
+                else:
+                    try:
+                        df = pd.read_excel(agents_file)
+                        expected_columns = ['matricule', 'nom_prenom', 'date_naissance', 'sit_fam', 'date_embauche', 'nombre_enf', 'date_debut_retraite']
+                        df.columns = df.columns.str.lower()
+                        if not all(col in df.columns for col in expected_columns):
+                            messages.error(request, "Format de fichier Excel invalide pour les agents. Les colonnes attendues sont manquantes.")
+                        else:
+                            Agent.objects.all().delete()
+                            for index, row in df.iterrows():
+                                if pd.isnull(row['matricule']) or pd.isnull(row['nom_prenom']) or pd.isnull(row['date_naissance']):
+                                    messages.error(request, f"Données requises manquantes à la ligne {index + 1}.")
+                                    return redirect('AgentsAffichage')
+                                try:
+                                    agent = Agent(
+                                        matricule=row['matricule'],
+                                        nom_prenom=row['nom_prenom'],
+                                        date_naissance=row['date_naissance'] if not pd.isna(row['date_naissance']) else None,
+                                        sit_fam=row['sit_fam'],
+                                        date_embauche=row['date_embauche'] if not pd.isna(row['date_embauche']) else None,
+                                        nombre_enf=row['nombre_enf'],
+                                        date_debut_retraite=row.get('date_debut_retraite') if not pd.isna(row.get('date_debut_retraite')) else None
+                                    )
+                                    agent.save()
+                                except Exception as e:
+                                    messages.error(request, f"Erreur lors de l'enregistrement des données des agents : {str(e)}")
+                                    return redirect('AgentsAffichage')
+                            messages.success(request, "Fichier agents téléchargé et traité avec succès !")
+                    except Exception as e:
+                        messages.error(request, f"Erreur lors de la lecture du fichier Excel des agents : {str(e)}")
+                        return redirect('AgentsAffichage')
+
+            # Process the demandes file
+            if demandes_file:
+                try:
+                    df = pd.read_excel(demandes_file)
+                    required_columns = ['Ville', 'Nom agent', 'Prenom agent', 'Matricule', 'Date de la demande', 'Date debut sejour', 'Date fin sejour', 'Type de vue', 'Nombre de nuites', 'Statut', 'Nature Periode', 'Site', 'N° Demande']
+                    if not all(column in df.columns for column in required_columns):
+                        messages.error(request, f'Colonne manquante dans le fichier Excel des demandes.')
+                        return redirect('demande_list')
+                    Demande.objects.all().delete()
+                    for _, row in df.iterrows():
+                        Demande.objects.create(
+                            ville=row.get('Ville', ''),
+                            nom_agent=row.get('Nom agent', ''),
+                            prenom_agent=row.get('Prenom agent', ''),
+                            matricule=row.get('Matricule', ''),
+                            date_demande=row.get('Date de la demande'),
+                            date_debut_sejour=row.get('Date debut sejour'),
+                            date_fin_sejour=row.get('Date fin sejour'),
+                            type_de_vue=row.get('Type de vue', 'Inconnu'),
+                            nombre_nuites=row.get('Nombre de nuites', 0),
+                            statut=row.get('Statut', ''),
+                            nature_periode=row.get('Nature Periode', ''),
+                            site=row.get('Site', ''),
+                            numero_demande=row.get('N° Demande', '')
+                        )
+                    messages.success(request, 'Fichier demandes téléchargé et données insérées avec succès.')
+                except Exception as e:
+                    messages.error(request, f'Erreur lors du traitement du fichier Excel des demandes: {e}')
+                    return redirect('demande_list')
+
+            # Process the historique file
+            if historique_file:
+                if not historique_file.name.endswith('.xlsx'):
+                    messages.error(request, "Format de fichier invalide pour l'historique. Veuillez télécharger un fichier .xlsx.")
+                else:
+                    try:
+                        df = pd.read_excel(historique_file)
+                        required_columns = ['Site', 'Nom agent', 'Prenom agent', 'Matricule', 'Date de la demande', 'Date debut sejour', 'Date fin sejour', 'Type de vue', 'Nombre de nuites']
+                        if not all(column in df.columns for column in required_columns):
+                            messages.error(request, "Le fichier Excel de l'historique n'a pas les colonnes requises.")
+                            return redirect('historique')
+                        Historique.objects.all().delete()
+                        rows_with_missing_values = df[df[required_columns].isnull().any(axis=1)]
+                        df = df.dropna(subset=required_columns)
+                        inserted_rows = 0
+                        for _, row in df.iterrows():
+                            try:
+                                Historique.objects.create(
+                                    ville=row['Site'],
+                                    nom_agent=row['Nom agent'],
+                                    prenom_agent=row['Prenom agent'],
+                                    matricule=row['Matricule'],
+                                    date_demande=row['Date de la demande'],
+                                    date_debut_sejour=row['Date debut sejour'],
+                                    date_fin_sejour=row['Date fin sejour'],
+                                    type_de_vue=row['Type de vue'],
+                                    nombre_nuites=row['Nombre de nuites'],
+                                )
+                                inserted_rows += 1
+                            except Exception as e:
+                                messages.error(request, f"Erreur lors de l'insertion de la ligne {row}: {e}")
+                        if not rows_with_missing_values.empty:
+                            messages.warning(request, "Certaines lignes avaient des valeurs manquantes et n'ont pas été insérées.", extra_tags='missing-values')
+                        else:
+                            messages.success(request, f"Fichier Excel historique traité avec succès. {inserted_rows} lignes insérées.")
+                    except Exception as e:
+                        messages.error(request, f"Erreur lors de la lecture du fichier Excel de l'historique : {str(e)}")
+                        return redirect('historique')
+
+            # Perform filtering and ranking
+            if request.POST.get('filter_and_rank'):
+                try:
+                    date_debut_sejour = form.cleaned_data['date_debut_sejour']
+                    date_fin_sejour = form.cleaned_data['date_fin_sejour']
+
+                    demandes = Demande.objects.filter(
+                        date_debut_sejour__gte=date_debut_sejour,
+                        date_fin_sejour__lte=date_fin_sejour
+                    )
+
+                    historique_queryset = Historique.objects.all().values()
+                    agents_queryset = Agent.objects.all().values()
+                    demandes_queryset = Demande.objects.all().values()
+
+                    historique_df = pd.DataFrame(list(historique_queryset))
+                    agents_df = pd.DataFrame(list(agents_queryset))
+                    demandes_df = pd.DataFrame(list(demandes_queryset))
+
+                    historique_df.rename(columns={
+                        'ville': 'Ville',
+                        'nom_agent': 'Nom agent',
+                        'prenom_agent': 'Prenom agent',
+                        'matricule': 'Matricule',
+                        'date_demande': 'Date de la demande',
+                        'date_debut_sejour': 'Date debut sejour',
+                        'date_fin_sejour': 'Date fin sejour',
+                        'nombre_nuites': 'Nombre de nuites'
+                    }, inplace=True)
+
+                    agents_df.rename(columns={
+                        'matricule': 'Matricule',
+                        'nom_prenom': 'Nom Prenom',
+                        'date_naissance': 'Date Naissance',
+                        'date_embauche': 'Date Embauche',
+                        'nombre_enf': 'Nombre Enfants',
+                        'date_debut_retraite': 'Date Debut Retraite'
+                    }, inplace=True)
+
+                    demandes_df.rename(columns={
+                        'numero_demande': 'Numero Demande',
+                        'ville': 'Ville',
+                        'nom_agent': 'Nom agent',
+                        'prenom_agent': 'Prenom agent',
+                        'matricule': 'Matricule',
+                        'date_demande': 'Date de la demande',
+                        'date_debut_sejour': 'Date debut sejour',
+                        'date_fin_sejour': 'Date fin sejour',
+                        'type_de_vue': 'Type de vue',
+                        'nombre_nuites': 'Nombre de nuites',
+                        'statut': 'Statut',
+                        'nature_periode': 'Nature Periode',
+                        'site': 'Site'
+                    }, inplace=True)
+
+                    demandes_df = demandes_df[
+                        (demandes_df['Date debut sejour'] >= date_debut_sejour) &
+                        (demandes_df['Date fin sejour'] <= date_fin_sejour)
+                    ]
+
+                    demandes_traiter_df = demandes_df.copy()
+                    demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Site'] == 'Khouribga']
+                    demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Nature Periode'] == 'Bloquée']
+                    demandes_traiter_df = demandes_traiter_df.groupby('Nom agent')['Nombre de nuites'].sum().reset_index()
+                    demandes_traiter_df = demandes_traiter_df.sort_values(by='Nombre de nuites', ascending=False)
+
+                    messages.success(request, "Filtrage et classement effectués avec succès.")
+                    # Redirect or render the appropriate template with results
+                    return redirect('result_page')  # Replace 'result_page' with your result view name
+
+                except Exception as e:
+                    messages.error(request, f"Erreur lors du traitement des données : {str(e)}")
+                    return redirect('result_page')  # Replace 'result_page' with your result view name
+
+    else:
+        form = UploadFilesForm()
+
+    return render(request, 'upload_files.html', {'form': form})
+
+
+
+
+
+
+def upload_rank(request):
+    if request.method == 'POST':
+        form = UploadFilesFormLibre(request.POST, request.FILES)
+        if form.is_valid():
+            agents_file = request.FILES.get('agents_file')
+            historique_file_first = request.FILES.get('historique_file_first')
+            historique_file_second = request.FILES.get('historique_file_second')
+            demandes_file = request.FILES.get('demandes_file')
+            try:
+                # Process agents file
+                if agents_file:
+                    agents_df = pd.read_excel(agents_file)
+                    expected_columns = ['matricule', 'nom_prenom', 'date_naissance', 'sit_fam', 'date_embauche', 'nombre_enf', 'date_debut_retraite']
+                    agents_df.columns = agents_df.columns.str.lower()
+                    missing_columns = [col for col in expected_columns if col not in agents_df.columns]
+                    if missing_columns:
+                        messages.error(request, f"Colonnes manquantes dans le fichier agents : {', '.join(missing_columns)}")
+                        return redirect('AgentsAffichage')
+
+                    for index, row in agents_df.iterrows():
+                        if pd.isnull(row['matricule']) or pd.isnull(row['nom_prenom']) or pd.isnull(row['date_naissance']):
+                            messages.error(request, f"Données requises manquantes à la ligne {index + 1}.")
+                            return redirect('AgentsAffichage')
+                    messages.success(request, "Fichier agents téléchargé et traité avec succès !")
+
+                # Process demandes file
+                if demandes_file:
+                    demandes_df = pd.read_excel(demandes_file)
+                    required_columns = ['Ville', 'Nom agent', 'Prenom agent', 'Matricule', 'Date de la demande', 'Date debut sejour', 'Date fin sejour', 'Type de vue', 'Nombre de nuites', 'Statut', 'Nature Periode', 'Site', 'N° Demande']
+                    missing_columns = [col for col in required_columns if col not in demandes_df.columns]
+                    if missing_columns:
+                        messages.error(request, f'Colonnes manquantes dans le fichier demandes : {", ".join(missing_columns)}')
+                        return redirect('demande_list')
+
+                # Process historique files
+                if historique_file_first and historique_file_second:
+                    if not historique_file_first.name.endswith('.xlsx') or not historique_file_second.name.endswith('.xlsx'):
+                        messages.error(request, "Format de fichier invalide pour l'historique. Veuillez télécharger des fichiers .xlsx.")
+                        return redirect('historique')
+
+                    historique_df_first = pd.read_excel(historique_file_first)
+                    historique_df_second = pd.read_excel(historique_file_second)
+
+                    if set(historique_df_first.columns) != set(historique_df_second.columns):
+                        messages.error(request, "Erreur : Les colonnes des deux fichiers historiques ne correspondent pas.")
+                        return redirect('historique')
+
+                    try:
+                        historique_df = pd.concat([historique_df_first, historique_df_second], ignore_index=True)
+                    except ValueError as e:
+                        messages.error(request, f"Erreur lors de la concaténation : {e}")
+                        return redirect('historique')
+                    except Exception as e:
+                        messages.error(request, f"Erreur inattendue lors de la concaténation : {e}")
+                        return redirect('historique')
+
+                    required_columns = ['Site', 'Nom agent', 'Prenom agent', 'Matricule', 'Date de la demande', 'Date debut sejour', 'Date fin sejour', 'Type de vue', 'Nombre de nuites']
+                    missing_columns = [col for col in required_columns if col not in historique_df.columns]
+                    if missing_columns:
+                        messages.error(request, f'Colonnes manquantes dans le fichier historique : {", ".join(missing_columns)}')
+                        return redirect('historique')
+
+                    historique_df = historique_df.dropna(subset=required_columns)
+                    if historique_df.empty:
+                        messages.warning(request, "Toutes les lignes du fichier historique contenaient des valeurs manquantes et n'ont pas été insérées.")
+
+                # Additional processing after validation
+                if form.is_valid():
+                    date_debut_sejour = pd.to_datetime(form.cleaned_data.get('date_debut_sejour'))
+                    date_fin_sejour = pd.to_datetime(form.cleaned_data.get('date_fin_sejour'))
+
+                    if not date_debut_sejour or not date_fin_sejour:
+                        messages.error(request, "Les dates de début et de fin de séjour sont requises.")
+                        return redirect('libre_generated')
+
+
+                # Rename columns for consistency
+                historique_df.rename(columns={
+                    'ville': 'Ville',
+                    'nom_agent': 'Nom agent',
+                    'prenom_agent': 'Prenom agent',
+                    'matricule': 'Matricule',
+                    'date_demande': 'Date de la demande',
+                    'date_debut_sejour': 'Date debut sejour',
+                    'date_fin_sejour': 'Date fin sejour',
+                    'nombre_nuites': 'Nombre de nuites'
+                }, inplace=True)
+
+                agents_df.rename(columns={
+                    'matricule': 'matricule',
+                    'nom_prenom': 'Nom Prenom',
+                    'date_naissance': 'Date Naissance',
+                    'date_embauche': 'Date Embauche',
+                    'nombre_enf': 'Nombre Enfants',
+                    'date_debut_retraite': 'date_debut_retraite'
+                }, inplace=True)
+
+                demandes_df.rename(columns={
+                    'N° Demande': 'Numero Demande',
+                    'ville': 'Ville',
+                    'nom_agent': 'Nom agent',
+                    'prenom_agent': 'Prenom agent',
+                    'Matricule': 'Matricule',
+                    'date_demande': 'Date de la demande',
+                    'date_debut_sejour': 'Date debut sejour',
+                    'date_fin_sejour': 'Date fin sejour',
+                    'type_de_vue': 'Type de vue',
+                    'nombre_nuites': 'Nombre de nuites',
+                    'statut': 'Statut',
+                    'nature_periode': 'Nature Periode',
+                    'site': 'Site'
+                }, inplace=True)
+
+                demandes_df['Date debut sejour'] = pd.to_datetime(demandes_df['Date debut sejour'], format='%m/%d/%Y', errors='coerce')
+                demandes_df['Date fin sejour'] = pd.to_datetime(demandes_df['Date fin sejour'], format='%m/%d/%Y', errors='coerce')
+
+
+                demandes_df = demandes_df[
+                    (demandes_df['Date debut sejour'] >= date_debut_sejour) &
+                    (demandes_df['Date fin sejour'] <= date_fin_sejour)
+                ]
+               
+                # Additional filtering
+                demandes_traiter_df = demandes_df.copy()
+                demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Site'] == 'Khouribga']
+                demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Nature Periode'] == 'Libre']
+                demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Statut'] == 'En attente de traitement']
+
+                # Convert date columns to datetime
+                print(agents_df['Date Embauche'])
+                print(agents_df['Date Naissance'])
+
+                demandes_traiter_df['Matricule'] = demandes_traiter_df['Matricule'].str.strip()
+                agents_df['matricule'] = agents_df['matricule'].str.strip()
+
+
+                # Process and merge data
+                demandes_traiter_df = demandes_traiter_df.merge(
+                    agents_df[['matricule', 'Date Embauche', 'Nombre Enfants', 'Date Naissance','date_debut_retraite']],
+                    left_on='Matricule', right_on='matricule', how='left'
+                )
+                print("0000000000000000")
+                print(demandes_traiter_df['Date Embauche'])
+                print(demandes_traiter_df['Date Naissance'])
+                print("11111111111111111")
+                demandes_traiter_df['Date Embauche'] = pd.to_datetime(demandes_traiter_df['Date Embauche'], format='%m/%d/%Y', errors='coerce')
+                print("2")
+                demandes_traiter_df['Date Naissance'] = pd.to_datetime(demandes_traiter_df['Date Naissance'], format='%m/%d/%Y', errors='coerce')
+                print("3")
+                historique_df['Date debut sejour'] = pd.to_datetime(historique_df['Date debut sejour'], errors='coerce')
+                print("4")
+                historique_df['Date fin sejour'] = pd.to_datetime(historique_df['Date fin sejour'], errors='coerce')
+                demandes_traiter_df['date_debut_retraite'] = pd.to_datetime(demandes_traiter_df['date_debut_retraite'], format='%d/%m/%Y')
+
+                # Filter expired date_debut_retraite
+                
+                demandes_traiter_df = demandes_traiter_df[
+                    (demandes_traiter_df['date_debut_retraite'] > demandes_traiter_df['Date debut sejour']) |
+                    (demandes_traiter_df['date_debut_retraite'].isna())
+                ]
+
+                if demandes_traiter_df.empty:
+                  messages.info(request, "Aucun enregistrement ne correspond aux critères après filtrage.")
+                  return redirect('libre_generated')
+            
+                # Calculate additional fields
+                def calculate_anciennete(date_embauche):
+                    return relativedelta(datetime.now(), date_embauche).years * 12 + relativedelta(datetime.now(), date_embauche).months
+
+                def calculate_age(date_naissance):
+                    return relativedelta(datetime.now(), date_naissance).years
+                print("first")
+                print(demandes_traiter_df['Matricule'])
+                print(demandes_traiter_df['Date Embauche'])
+                print(demandes_traiter_df['Date Naissance'])
+                print(demandes_traiter_df[['Date Embauche', 'Date Naissance']].isnull().sum())
+
+                demandes_traiter_df['Anciennete'] = demandes_traiter_df['Date Embauche'].apply(calculate_anciennete)
+                demandes_traiter_df['Age'] = demandes_traiter_df['Date Naissance'].apply(calculate_age)
+                print("second")
+                def calculate_sejour_count(matricule, historique_df):
+                    return len(historique_df[historique_df['Matricule'] == matricule])
+
+                def calculate_last_sejour(matricule, historique_df):
+                    agent_hist = historique_df[historique_df['Matricule'] == matricule]
+                    if agent_hist.empty:
+                        return pd.NaT
+                    return agent_hist['Date debut sejour'].max()
+
+                demandes_traiter_df['Nombre Sejours'] = demandes_traiter_df['Matricule'].apply(lambda x: calculate_sejour_count(x, historique_df))
+                demandes_traiter_df['Dernier Sejour'] = demandes_traiter_df['Matricule'].apply(lambda x: calculate_last_sejour(x, historique_df))
+
+                # Handle NaT values in 'Dernier Sejour' column
+                demandes_traiter_df['Dernier Sejour'] = demandes_traiter_df['Dernier Sejour'].fillna(pd.Timestamp.min)
+
+                # Sorting agents according to the specified criteria
+                def custom_sort(row):
+                    if row['Nombre Sejours'] == 0:
+                        return (0, -row['Anciennete'], -row['Age'], -row['Nombre Enfants'])
+                    else:
+                        return (
+                            1,  # Priorité aux agents avec des séjours
+                            row['Nombre Sejours'],  # Tri par nombre de séjours
+                            row['Dernier Sejour'],  # Dernier séjour le plus loin en premier
+                            -row['Anciennete'],  # Ancienneté en mois
+                            -row['Age'],  # Âge
+                            -row['Nombre Enfants']  # Nombre d'enfants
+                        )
+
+                demandes_traiter_df['Sort Key'] = demandes_traiter_df.apply(custom_sort, axis=1)
+                demandes_traiter_df.sort_values(by='Sort Key', inplace=True)
+                demandes_traiter_df.drop(columns='Sort Key', inplace=True)
+                print("laaaast -1")
+                save_rejected_records(demandes_traiter_df, request)
+                # Update AgentsLibre with correct Dernier Sejour
+                print("laaaast 0")
+                AgentsLibre.objects.all().delete()  # Clean up old records
+                print("laaaast")
+                for index, row in demandes_traiter_df.iterrows():
+                    AgentsLibre.objects.create(
+                        numero_demande=row['Numero Demande'],
+                        ville=row['Ville'],
+                        nom_agent=row['Nom agent'],
+                        prenom_agent=row['Prenom agent'],
+                        matricule=row['Matricule'],
+                        date_debut_sejour=row['Date debut sejour'],
+                        date_fin_sejour=row['Date fin sejour'],
+                        type_de_vue=row['Type de vue'],
+                        nombre_enfants=row['Nombre Enfants'],
+                        age=row['Age'],
+                        anciennete=row['Anciennete'],
+                        nombre_sejour=row['Nombre Sejours'],
+                        dernier_sejour=row['Dernier Sejour']
+                    )
+
+                messages.success(request, "Les données ont été traitées et sauvegardées avec succès.")
+                return redirect('libre_generated')
+            except Exception as e:
+                messages.error(request, f"Une erreur est survenue: {str(e)}")
+                return redirect('libres_files')
+    else:
+        form = UploadFilesFormLibre()
+
+    return redirect('libre_generated')
+
+
+
+
+def download_pdf_demandes_libre(request):
+    demandes = AgentsLibre.objects.all()
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
+
+    # Styles
+    styles = getSampleStyleSheet()
+    title_style = styles['Title']
+    heading_style = styles['Heading2']
+    body_style = styles['BodyText']
+
+    # Title
+    title = Paragraph("Liste des Demandes Traitées", title_style)
+    elements.append(title)
+
+    # Table header
+    data = [
+        ["Numéro Demande", "Ville", "Matricule", "Date Début Séjour", "Date Fin Séjour", "Anciennete", 
+         "Nombre de séjour","Dernier séjour", "Age", "Nombre Enfants"]
+    ]
+    
+    # Add data
+    for demande in demandes:
+        data.append([
+            demande.numero_demande,
+            demande.ville,
+            #demande.nom_agent,
+            #demande.type_de_vue,
+            demande.matricule,
+            demande.date_debut_sejour.strftime("%d-%m-%Y"),
+            demande.date_fin_sejour.strftime("%d-%m-%Y"),
+            demande.anciennete,
+            demande.nombre_sejour,
+            demande.dernier_sejour,
+            demande.age,
+            demande.nombre_enfants
+        ])
+
+    # Create table
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), '#d0d0d0'),
+        ('TEXTCOLOR', (0, 0), (-1, 0), '#000000'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), '#f5f5f5'),
+        ('GRID', (0, 0), (-1, -1), 1, '#000000'),
+    ]))
+    
+    elements.append(table)
+    
+    # Build PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    response = HttpResponse(buffer.read(), content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="demandes_traiter.pdf"'
+    return response
+
+
+
+@require_POST
+def delete_demandes_libres(request):
+    try:
+        AgentsLibre.objects.all().delete()
+        messages.success(request, 'Toutes les demandes de periode libre traitées ont été supprimées avec succès.')
+    except Exception as e:
+        messages.error(request, f'Erreur lors de la suppression des demandes traitées: {e}')
+    return redirect('libre_generated')  # Redirect to the page displaying the statistics
+
+
+
+import pandas as pd
+from django.http import HttpResponse
+from .models import AgentsLibre
+
+def download_excel_demandes_libre(request):
+    # Query the AgentsLibre model
+    demandes = AgentsLibre.objects.all()
+
+    # Convert the queryset to a DataFrame
+    df = pd.DataFrame(list(demandes.values()))
+
+    # Define columns of interest
+    columns_of_interest = [
+        'numero_demande', 'ville', 'matricule', 'date_debut_sejour', 
+        'date_fin_sejour', 'anciennete', 'nombre_sejour', 
+        'dernier_sejour', 'age', 'nombre_enfants'
+    ]
+    df = df[columns_of_interest]
+
+    # Create a BytesIO buffer to hold the Excel data
+    excel_buffer = io.BytesIO()
+
+    # Write the DataFrame to the buffer
+    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Demandes Traitées')
+
+    # Seek to the beginning of the stream
+    excel_buffer.seek(0)
+
+    # Return the Excel file as a downloadable response
+    response = HttpResponse(excel_buffer, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="demandes_traiter.xlsx"'
+    
+    return response
+
+def download_excel_rejected_demandes(request):
+
+     rejected_demandes = RejectedDemandesRetrait.objects.all()
+     df = pd.DataFrame(list(rejected_demandes.values()))
+     data = [
+        ["numero_demande", "nom_agent", "prenom_agent", "date_debut_sejour", "date_fin_sejour"]
+    ]
+     df = df[data]
+
+     excel_buffer = io.BytesIO()
+
+    # Write the DataFrame to the buffer
+     with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Demandes Traitées')
+
+    # Seek to the beginning of the stream
+     excel_buffer.seek(0)
+
+    # Return the Excel file as a downloadable response
+     response = HttpResponse(excel_buffer, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+     response['Content-Disposition'] = 'attachment; filename="demandes_rejete.xlsx"'
+    
+     return response

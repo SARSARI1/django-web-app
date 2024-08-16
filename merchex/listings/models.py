@@ -111,4 +111,23 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.user.username
+    
+
+class AgentsLibre(models.Model):
+    numero_demande = models.CharField(max_length=100)
+    ville = models.CharField(max_length=100)
+    nom_agent = models.CharField(max_length=100)
+    prenom_agent = models.CharField(max_length=100)
+    matricule = models.CharField(max_length=100)
+    date_debut_sejour = models.DateField()
+    date_fin_sejour = models.DateField()
+    type_de_vue = models.CharField(max_length=100)
+    nombre_enfants = models.IntegerField()
+    age = models.IntegerField()
+    anciennete = models.IntegerField()
+    nombre_sejour = models.IntegerField()
+    dernier_sejour = models.DateField()
+
+    def __str__(self):
+        return f"{self.nom_agent} {self.prenom_agent} ({self.matricule})"
 

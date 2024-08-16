@@ -54,5 +54,17 @@ urlpatterns = [
      path('download-all-rejected-demandes-excel/', views.download_all_rejected_demandes_excel, name='download_all_rejected_demandes_excel'),
 
     
+
+    ##################################################
+    path('libres/', views.ListsLibre, name='libres'),
+   path('libres_files/', views.filter_and_rank_agents, name='libres_files'),
+    path('listlibre/', views.libre_generated, name='libre_generated'),
+    path('download_excel/<str:ville>/<str:type_de_vue>/', views.download_excel, name='download_excel'),
+    path('upload_rank/', views.upload_rank, name='upload_rank'),
+    path('delete_libre_traités/', views.delete_demandes_libres, name='delete_libre_traites'),
+    path('download_pdf_demandes_libre/', views.download_pdf_demandes_libre, name='download_pdf_demandes_libre'),
+    path('download_excel_demandes_libre/', views.download_excel_demandes_libre, name='download_excel_demandes_libre'),
+    path('download_excel_rejected_demandes/', views.download_excel_rejected_demandes, name='download_excel_rejected_demandes'),
+
     
 ]
