@@ -82,3 +82,12 @@ from django import forms
 
 class UploadExcelFileDemandesForm(forms.Form):
     demandes_file = forms.FileField(label='Fichier de demandes')
+
+class UploadFilesFormLibre(forms.Form):
+    agents_file = forms.FileField(label='Téléchargez le fichier des agents')
+    historique_file_first = forms.FileField(label='Téléchargez le fichier historique 1')
+    historique_file_second = forms.FileField(label='Téléchargez le fichier historique 2')
+    demandes_file = forms.FileField(label='Téléchargez le fichier des demandes')
+    date_debut_sejour = forms.DateField(label='Date début séjour', widget=forms.DateInput(attrs={'type': 'date'}))
+    date_fin_sejour = forms.DateField(label='Date fin séjour', widget=forms.DateInput(attrs={'type': 'date'}))
+   

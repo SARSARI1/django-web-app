@@ -2,7 +2,7 @@
 from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
-from .forms import UploadFilesForm
+from .forms import UploadFilesForm, UploadFilesFormLibre
 from .models import DemandesTraiter, Quota
 from django.core.files.storage import default_storage
 from reportlab.lib.pagesizes import letter, landscape
@@ -14,8 +14,12 @@ from io import BytesIO
 import pandas as pd
 from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
+from openpyxl import Workbook
 
 from dateutil.relativedelta import relativedelta
+from reportlab.lib.pagesizes import A4
+
 
 # Sample view for hello.html
 def hello(request):
@@ -1871,6 +1875,8 @@ def filter_and_rank_agents(request):
                 historique_df['Date debut sejour'] = pd.to_datetime(historique_df['Date debut sejour'], errors='coerce')
                 historique_df['Date fin sejour'] = pd.to_datetime(historique_df['Date fin sejour'], errors='coerce')
 
+                
+
                 # Process and merge data
                 demandes_traiter_df = demandes_traiter_df.merge(
                     agents_df[['Matricule', 'Date Embauche', 'Nombre Enfants', 'Date Naissance','date_debut_retraite']],
@@ -1923,9 +1929,10 @@ def filter_and_rank_agents(request):
                     else:
                         return (
                             1,  # Priorité aux agents avec des séjours
-                            row['Nombre Sejours'],  # Tri par nombre de séjours
+                           row['Nombre Sejours'],  # Tri par nombre de séjours
                             row['Dernier Sejour'],  # Dernier séjour le plus loin en premier
-                            -row['Anciennete'],  # Ancienneté en mois
+                            #-row['Anciennete'],  # Ancienneté en mois
+                            row['Date Embauche'],
                             -row['Age'],  # Âge
                             -row['Nombre Enfants']  # Nombre d'enfants
                         )
@@ -1948,6 +1955,7 @@ def filter_and_rank_agents(request):
                         type_de_vue=row['Type de vue'],
                         nombre_enfants=row['Nombre Enfants'],
                         age=row['Age'],
+                        date_embauche=row['Date Embauche'],
                         anciennete=row['Anciennete'],
                         nombre_sejour=row['Nombre Sejours'],
                         dernier_sejour=row['Dernier Sejour']
@@ -2000,17 +2008,29 @@ import pandas as pd
 from django.http import HttpResponse
 from .models import AgentsLibre
 
-def download_excel(request, ville, type_de_vue):
+def download_excel_libre(request, ville, type_de_vue):
     # Filter the AgentsLibre model based on the parameters
     filtered_agents = AgentsLibre.objects.filter(ville=ville, type_de_vue=type_de_vue)
 
     # Convert the queryset to a DataFrame
     df = pd.DataFrame(list(filtered_agents.values()))
 
+    
+    if df.empty:
+        # Si le DataFrame est vide, créez un fichier Excel vide ou une feuille de calcul avec des messages appropriés
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['Aucune donnée disponible'])
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=rejected_demandes.xlsx'
+        wb.save(response)
+        return response
+
     # Define columns of interest
     columns_of_interest = ['numero_demande',  'matricule', 'nom_agent', 'prenom_agent','nombre_sejour','dernier_sejour', 'anciennete',  'age', 'nombre_enfants', 
                            'ville','type_de_vue','date_debut_sejour', 'date_fin_sejour']
     df = df[columns_of_interest]
+
 
     # Create a BytesIO buffer to hold the Excel data
     excel_buffer = BytesIO()
@@ -2109,7 +2129,7 @@ def process_libres(request):
             demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Statut'] == 'En attente de traitement']
 
             # Step 5: Add retraite Column and Calculate Its Values
-            from datetime import datetime
+           
             demandes_traiter_df = demandes_df.merge(
                     historique_df[['Matricule', 'Date Embauche', 'Nombre Enfants', 'Date Debut Retraite', 'Date Naissance']],
                     on='Matricule',
@@ -2503,6 +2523,10 @@ def upload_rank(request):
                     'site': 'Site'
                 }, inplace=True)
 
+                print("*********************matrucule demande")
+                
+                print(demandes_df['Matricule'])
+
                 demandes_df['Date debut sejour'] = pd.to_datetime(demandes_df['Date debut sejour'], format='%m/%d/%Y', errors='coerce')
                 demandes_df['Date fin sejour'] = pd.to_datetime(demandes_df['Date fin sejour'], format='%m/%d/%Y', errors='coerce')
 
@@ -2521,9 +2545,14 @@ def upload_rank(request):
                 # Convert date columns to datetime
                 print(agents_df['Date Embauche'])
                 print(agents_df['Date Naissance'])
+                print("matricuuule demande avant merge")
+                print(demandes_traiter_df['Matricule'])
 
-                demandes_traiter_df['Matricule'] = demandes_traiter_df['Matricule'].str.strip()
-                agents_df['matricule'] = agents_df['matricule'].str.strip()
+                demandes_traiter_df['Matricule'] = demandes_traiter_df['Matricule'].astype(str).str.strip()
+                agents_df['matricule'] = agents_df['matricule'].astype(str).str.strip()
+
+                print("matricuuule demande traités apres Strip")
+                print(demandes_traiter_df['Matricule'])
 
 
                 # Process and merge data
@@ -2531,6 +2560,8 @@ def upload_rank(request):
                     agents_df[['matricule', 'Date Embauche', 'Nombre Enfants', 'Date Naissance','date_debut_retraite']],
                     left_on='Matricule', right_on='matricule', how='left'
                 )
+                print("matricuuule demande traités")
+                print(demandes_traiter_df['Matricule'])
                 print("0000000000000000")
                 print(demandes_traiter_df['Date Embauche'])
                 print(demandes_traiter_df['Date Naissance'])
@@ -2588,13 +2619,14 @@ def upload_rank(request):
                 # Sorting agents according to the specified criteria
                 def custom_sort(row):
                     if row['Nombre Sejours'] == 0:
-                        return (0, -row['Anciennete'], -row['Age'], -row['Nombre Enfants'])
+                        return (0, row['Date Embauche'], -row['Age'], -row['Nombre Enfants'])
                     else:
                         return (
                             1,  # Priorité aux agents avec des séjours
                             row['Nombre Sejours'],  # Tri par nombre de séjours
                             row['Dernier Sejour'],  # Dernier séjour le plus loin en premier
-                            -row['Anciennete'],  # Ancienneté en mois
+                            #-row['Anciennete'],  # Ancienneté en mois
+                            row['Date Embauche'],
                             -row['Age'],  # Âge
                             -row['Nombre Enfants']  # Nombre d'enfants
                         )
@@ -2621,6 +2653,7 @@ def upload_rank(request):
                         nombre_enfants=row['Nombre Enfants'],
                         age=row['Age'],
                         anciennete=row['Anciennete'],
+                        date_embauche=row['Date Embauche'],
                         nombre_sejour=row['Nombre Sejours'],
                         dernier_sejour=row['Dernier Sejour']
                     )
@@ -2751,10 +2784,23 @@ def download_excel_rejected_demandes(request):
 
      rejected_demandes = RejectedDemandesRetrait.objects.all()
      df = pd.DataFrame(list(rejected_demandes.values()))
+     
+     if df.empty:
+        # Si le DataFrame est vide, créez un fichier Excel vide ou une feuille de calcul avec des messages appropriés
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['Aucune donnée disponible'])
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=demandes_rejete.xlsx'
+        wb.save(response)
+        return response
+
      data = [
         ["numero_demande", "nom_agent", "prenom_agent", "date_debut_sejour", "date_fin_sejour"]
     ]
      df = df[data]
+
+     
 
      excel_buffer = io.BytesIO()
 
@@ -2770,3 +2816,95 @@ def download_excel_rejected_demandes(request):
      response['Content-Disposition'] = 'attachment; filename="demandes_rejete.xlsx"'
     
      return response
+
+
+def download_pdf_libre(request, ville, type_de_vue):
+     # Récupérer les données du modèle AgentsLibre selon les critères
+    data = AgentsLibre.objects.filter(ville=ville, type_de_vue=type_de_vue).values()
+    
+    # Convertir les données en DataFrame
+    df = pd.DataFrame(data)
+    
+    # Debug: Afficher les colonnes du DataFrame
+    print("DataFrame columns:", df.columns.tolist())
+    
+    # Colonnes d'intérêt
+    columns_of_interest = ['numero_demande', 'matricule',  'nombre_sejour', 
+                           'dernier_sejour', 'anciennete', 'age', 'nombre_enfants', 
+                            'date_debut_sejour', 'date_fin_sejour']
+
+    # Vérifier si toutes les colonnes existent dans le DataFrame
+    missing_cols = [col for col in columns_of_interest if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Colonnes manquantes: {missing_cols}")
+    
+    # Créer un buffer pour le PDF
+    buffer = BytesIO()
+    
+    # Créer le document PDF
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+
+    # Définir les styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        name='TitleStyle',
+        fontName='Helvetica-Bold',
+        fontSize=14,
+        textColor=colors.black,
+        spaceAfter=20,
+        alignment=1  # Centré
+    )
+    normal_style = styles['Normal']
+    normal_style.fontName = 'Helvetica'
+    normal_style.fontSize = 10
+
+    # Titre du document
+    title_text = "Rapport des Agents Libres"
+    title_paragraph = Paragraph(title_text, title_style)
+    elements.append(title_paragraph)
+    elements.append(Spacer(1, 12))
+
+    # Convertir le DataFrame en liste de listes pour la Table
+    table_data = [columns_of_interest] + df[columns_of_interest].values.tolist()
+
+    # Calculer les largeurs de colonnes basées sur le contenu
+    col_widths = [max(len(str(cell)) for cell in column) * 7 for column in zip(*table_data)]
+    col_widths = [min(width, 100) for width in col_widths]  # Limiter la largeur maximale à 100
+
+    # Créer la Table
+    table = Table(table_data, colWidths=col_widths)
+    
+    # Appliquer le style de la table
+    table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),  # Couleur de fond pour l'en-tête
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # Couleur du texte pour l'en-tête
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Style de police pour l'en-tête
+        ('FONTSIZE', (0, 0), (-1, 0), 10),  # Taille de la police pour l'en-tête
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.whitesmoke),  # Couleur de fond pour les données
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),  # Taille de la police pour les données
+        ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.black),
+        ('BOX', (0, 0), (-1, -1), 0.25, colors.black),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),  # Couleurs alternées pour les lignes
+    ])
+    table.setStyle(table_style)
+
+    elements.append(table)
+    elements.append(Spacer(1, 24))
+
+    # Construire le PDF
+    doc.build(elements)
+    
+    # Récupérer les données PDF du buffer
+    pdf_data = buffer.getvalue()
+    buffer.close()
+    
+    # Placer le PDF généré dans la réponse HTTP
+    response = HttpResponse(pdf_data, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{ville}_{type_de_vue}.pdf"'
+    
+    return response

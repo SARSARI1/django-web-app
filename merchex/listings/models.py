@@ -125,6 +125,7 @@ class AgentsLibre(models.Model):
     nombre_enfants = models.IntegerField()
     age = models.IntegerField()
     anciennete = models.IntegerField()
+    date_embauche = models.DateField(null=True, blank=True)
     nombre_sejour = models.IntegerField()
     dernier_sejour = models.DateField()
 
