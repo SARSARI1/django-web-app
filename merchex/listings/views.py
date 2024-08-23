@@ -2,7 +2,7 @@
 from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
-from .forms import UploadFilesForm, UploadFilesFormLibre
+from .forms import AffectationForm, UploadFilesForm, UploadFilesFormLibre
 from .models import DemandesTraiter, Quota
 from django.core.files.storage import default_storage
 from reportlab.lib.pagesizes import letter, landscape
@@ -1980,6 +1980,7 @@ def filter_and_rank_agents(request):
 
 def libre_generated(request):
     # Fetch distinct combinations of 'ville' and 'type_de_vue'
+    form = AffectationForm(request.POST)
     data = AgentsLibre.objects.values('ville', 'type_de_vue').distinct()
     
     # Group data by 'ville' and store unique 'type_de_vue' values
@@ -1993,7 +1994,9 @@ def libre_generated(request):
         'data': {ville: list(types) for ville, types in grouped_data.items()},
         'demandesLibre': AgentsLibre.objects.all(),
         'rejected_demandes': RejectedDemandesRetrait.objects.all(),
+        'form': form,
     }
+    
     
     return render(request, 'listings/listesLibres.html', context)
 
@@ -2745,6 +2748,7 @@ def delete_demandes_libres(request):
 
 
 
+
 import pandas as pd
 from django.http import HttpResponse
 from .models import AgentsLibre
@@ -2908,3 +2912,128 @@ def download_pdf_libre(request, ville, type_de_vue):
     response['Content-Disposition'] = f'attachment; filename="{ville}_{type_de_vue}.pdf"'
     
     return response
+
+
+import pandas as pd
+from openpyxl import load_workbook
+from .models import AgentsLibre
+
+import pandas as pd
+from openpyxl import load_workbook
+from django.http import HttpResponse
+from io import BytesIO
+from .models import AgentsLibre
+from openpyxl import load_workbook
+from io import BytesIO
+from django.http import HttpResponse
+from .forms import AffectationForm
+from .models import AgentsLibre
+
+def affecter(request, ville, type_de_vue):
+    if request.method == 'POST':
+        form = AffectationForm(request.POST, request.FILES)
+        if form.is_valid():
+            aff_file = request.FILES.get('affectation_file')
+            filtred_agents = AgentsLibre.objects.filter(ville=ville, type_de_vue=type_de_vue)
+            workbook = load_workbook(aff_file)
+            worksheet = workbook.active
+            assignments = {}
+
+            for agent in filtred_agents:
+                assigned = False
+                possible_assignments = []
+
+                for row in range(4, worksheet.max_row + 1):
+                    chalet = worksheet.cell(row=row, column=2).value
+                    if not chalet:
+                        continue
+
+                    start_day = agent.date_debut_sejour.day
+                    end_day = agent.date_fin_sejour.day
+                    gap_minimum = None
+                    period_available = True
+                    gap_available = False
+                    open_right = False
+                    open_left = False
+
+                    # Vérification si la période est disponible
+                    for day in range(start_day, end_day + 1):
+                        if worksheet.cell(row=row, column=day + 2).value:
+                            period_available = False
+                            break
+
+                    if period_available:
+                        # Vérification des ouvertures et calcul du gap
+                        for day in range(3, 34):
+                            if worksheet.cell(row=row, column=day).value:
+                                if day + 1 <= 33 and not worksheet.cell(row=row, column=day + 1).value:
+                                    open_right = True
+                                if day - 1 >= 3 and not worksheet.cell(row=row, column=day - 1).value:
+                                    open_left = True
+                        gap_minimum = calculate_gap(worksheet, row, start_day, end_day)
+
+                        if gap_minimum is not None:
+                            gap_available = True
+
+                        # Enregistrer les affectations possibles
+                        possible_assignments.append((row, gap_minimum, open_right, open_left, gap_available))
+
+                # Priorisation des affectations
+                if possible_assignments:
+                    possible_assignments.sort(
+                        key=lambda x: (
+                            -x[4],  # Prioriser les gaps disponibles (True > False)
+                            x[1] if x[1] is not None else float('inf'), # Taille du gap minimum (minimiser le gap)
+                            -x[2],  # Prioriser les ouvertures à droite (True > False)
+                            -x[3],  # Prioriser les ouvertures à gauche (True > False)
+                            not (x[2] or x[3])  # Enfin, affecter les chalets totalement libres (False > True)
+                        )
+                    )
+                    selected_assignment = possible_assignments[0]
+                    selected_row = selected_assignment[0]
+
+                    # Affecter l'agent au chalet sélectionné
+                    for day in range(start_day, end_day + 1):
+                        worksheet.cell(row=selected_row, column=day + 2).value = agent.matricule
+
+                    assignments[agent.matricule] = worksheet.cell(row=selected_row, column=2).value
+                    assigned = True
+
+                if not assigned:
+                    print(f"Agent {agent.matricule} non affecté à cause d'un manque de période disponible.")
+
+            output = BytesIO()
+            workbook.save(output)
+            output.seek(0)
+
+            response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = f'attachment; filename="Affectation_{ville}_{type_de_vue}.xlsx"'
+
+            return response
+        
+        else:
+            print("Form errors:", form.errors)
+    return redirect('libres_files')
+
+def calculate_gap(worksheet, row, start_day, end_day):
+    previous_filled = None
+    next_filled = None
+
+    for day in range(3, start_day):
+        if worksheet.cell(row=row, column=day).value:
+            previous_filled = day
+            break
+
+    for day in range(end_day + 1, 34):
+        if worksheet.cell(row=row, column=day).value:
+            next_filled = day
+            break
+
+    if previous_filled and next_filled:
+        return min(next_filled - end_day, start_day - previous_filled)
+    elif previous_filled:
+        return start_day - previous_filled
+    elif next_filled:
+        return next_filled - end_day
+    else:
+        return None

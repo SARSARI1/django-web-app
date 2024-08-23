@@ -66,6 +66,7 @@ urlpatterns = [
     path('download_excel_demandes_libre/', views.download_excel_demandes_libre, name='download_excel_demandes_libre'),
     path('download_excel_rejected_demandes/', views.download_excel_rejected_demandes, name='download_excel_rejected_demandes'),
     path('download_pdf_libre/<str:ville>/<str:type_de_vue>//', views.download_pdf_libre, name='download_pdf_libre'),
+    path('affecter/<str:ville>/<str:type_de_vue>/', views.affecter, name='affecter'),
 
     
 ]

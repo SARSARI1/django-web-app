@@ -91,3 +91,7 @@ class UploadFilesFormLibre(forms.Form):
     date_debut_sejour = forms.DateField(label='Date début séjour', widget=forms.DateInput(attrs={'type': 'date'}))
     date_fin_sejour = forms.DateField(label='Date fin séjour', widget=forms.DateInput(attrs={'type': 'date'}))
    
+
+
+class AffectationForm(forms.Form):
+    affectation_file = forms.FileField(label="Fichier d'affectation")
