@@ -2030,7 +2030,7 @@ def download_excel_libre(request, ville, type_de_vue):
         return response
 
     # Define columns of interest
-    columns_of_interest = ['numero_demande',  'matricule', 'nom_agent', 'prenom_agent','nombre_sejour','dernier_sejour', 'anciennete',  'age', 'nombre_enfants', 
+    columns_of_interest = ['numero_demande',  'matricule', 'nom_agent', 'prenom_agent','nombre_sejour','dernier_sejour', 'anciennete', date_embauche, 'age', 'nombre_enfants', 
                            'ville','type_de_vue','date_debut_sejour', 'date_fin_sejour']
     df = df[columns_of_interest]
 
@@ -2928,6 +2928,23 @@ from io import BytesIO
 from django.http import HttpResponse
 from .forms import AffectationForm
 from .models import AgentsLibre
+from openpyxl import load_workbook
+from django.http import HttpResponse
+from io import BytesIO
+
+from openpyxl import load_workbook
+from django.http import HttpResponse
+from io import BytesIO
+import itertools
+
+from openpyxl import load_workbook
+from django.http import HttpResponse
+from io import BytesIO
+
+from openpyxl import load_workbook
+from django.http import HttpResponse
+from io import BytesIO
+from openpyxl.styles import Border, Side, PatternFill
 
 def affecter(request, ville, type_de_vue):
     if request.method == 'POST':
@@ -2938,7 +2955,32 @@ def affecter(request, ville, type_de_vue):
             workbook = load_workbook(aff_file)
             worksheet = workbook.active
             assignments = {}
+            
+            thick_border = Border(
+                left=Side(style="thick"),
+                right=Side(style="thick"),
+                top=Side(style="thick"),
+                bottom=Side(style="thick")
+            )
 
+            # Définir un ensemble de couleurs pour la colorisation
+            colors = [
+    "FFFF00",  # Jaune
+    "00FF00",  # Vert
+    "00FFFF",  # Cyan
+    "FF00FF",  # Magenta
+    "FFA500",  # Orange
+    "FFC0CB",  # Rose
+    "0000FF",  # Bleu
+    "8A2BE2",  # Bleu-violet
+    "FFD700",  # Or
+    "DC143C",  # Crème
+    "4B0082",  # Indigo
+    "7FFF00",  # Vert Chartreuse
+    "FF4500",  # Rouge orange
+]
+
+            color_index = 0
             for agent in filtred_agents:
                 assigned = False
                 possible_assignments = []
@@ -2950,52 +2992,40 @@ def affecter(request, ville, type_de_vue):
 
                     start_day = agent.date_debut_sejour.day
                     end_day = agent.date_fin_sejour.day
-                    gap_minimum = None
                     period_available = True
-                    gap_available = False
-                    open_right = False
-                    open_left = False
 
-                    # Vérification si la période est disponible
+                    # Vérification de la disponibilité de la période
                     for day in range(start_day, end_day + 1):
                         if worksheet.cell(row=row, column=day + 2).value:
                             period_available = False
                             break
 
                     if period_available:
-                        # Vérification des ouvertures et calcul du gap
-                        for day in range(3, 34):
-                            if worksheet.cell(row=row, column=day).value:
-                                if day + 1 <= 33 and not worksheet.cell(row=row, column=day + 1).value:
-                                    open_right = True
-                                if day - 1 >= 3 and not worksheet.cell(row=row, column=day - 1).value:
-                                    open_left = True
+                        # Calcul du gap minimum pour cette période
                         gap_minimum = calculate_gap(worksheet, row, start_day, end_day)
+                        possible_assignments.append((row, gap_minimum))
 
-                        if gap_minimum is not None:
-                            gap_available = True
-
-                        # Enregistrer les affectations possibles
-                        possible_assignments.append((row, gap_minimum, open_right, open_left, gap_available))
-
-                # Priorisation des affectations
+                # Priorisation des affectations selon les critères
                 if possible_assignments:
                     possible_assignments.sort(
-                        key=lambda x: (
-                            -x[4],  # Prioriser les gaps disponibles (True > False)
-                            x[1] if x[1] is not None else float('inf'), # Taille du gap minimum (minimiser le gap)
-                            -x[2],  # Prioriser les ouvertures à droite (True > False)
-                            -x[3],  # Prioriser les ouvertures à gauche (True > False)
-                            not (x[2] or x[3])  # Enfin, affecter les chalets totalement libres (False > True)
-                        )
+                        key=lambda x: -x[1] if x[1] is not None else float('inf')  # Prioriser le gap minimum
                     )
                     selected_assignment = possible_assignments[0]
                     selected_row = selected_assignment[0]
 
+                    fill_color = PatternFill(start_color=colors[color_index % len(colors)],
+                                             end_color=colors[color_index % len(colors)],
+                                             fill_type="solid")
+                    color_index += 1
+
                     # Affecter l'agent au chalet sélectionné
                     for day in range(start_day, end_day + 1):
                         worksheet.cell(row=selected_row, column=day + 2).value = agent.matricule
-
+                        cell = worksheet.cell(row=selected_row, column=day + 2)
+                        cell.border = thick_border
+                        cell.fill = fill_color
+                        
+                    
                     assignments[agent.matricule] = worksheet.cell(row=selected_row, column=2).value
                     assigned = True
 
@@ -3019,16 +3049,19 @@ def calculate_gap(worksheet, row, start_day, end_day):
     previous_filled = None
     next_filled = None
 
-    for day in range(3, start_day):
-        if worksheet.cell(row=row, column=day).value:
-            previous_filled = day
+    # Trouver la dernière date libre avant start_day
+    for day in range(start_day - 1, 2, -1):
+        if not worksheet.cell(row=row, column=day + 2).value:
+            previous_filled = day + 2
             break
 
+    # Trouver le jour suivant rempli après end_day
     for day in range(end_day + 1, 34):
-        if worksheet.cell(row=row, column=day).value:
-            next_filled = day
+        if worksheet.cell(row=row, column=day + 2).value:
+            next_filled = day + 2
             break
 
+    # Calculer le gap minimum
     if previous_filled and next_filled:
         return min(next_filled - end_day, start_day - previous_filled)
     elif previous_filled:
@@ -3036,4 +3069,4 @@ def calculate_gap(worksheet, row, start_day, end_day):
     elif next_filled:
         return next_filled - end_day
     else:
-        return None
+        return float('inf')  # Période totalement libre, donc gap infini
