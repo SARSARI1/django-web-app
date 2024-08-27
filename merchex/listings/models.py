@@ -101,17 +101,25 @@ class Demande(models.Model):
 
 
 
-from django.contrib.auth.models import User
+
+
+
+from django.db import models
 
 class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    username = models.CharField(max_length=128, default='user')
+    password = models.CharField(max_length=128, default='default_password')  # Consider hashing passwords in a real application
     bio = models.TextField(blank=True)
     location = models.CharField(max_length=100, blank=True)
     birth_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
-        return self.user.username
-    
+        return self.username
+
+    @classmethod
+    def check_profile(cls, username, password):
+        return cls.objects.filter(username=username, password=password).exists()
+
 
 class AgentsLibre(models.Model):
     numero_demande = models.CharField(max_length=100)

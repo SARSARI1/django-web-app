@@ -1142,20 +1142,36 @@ def delete_historique(request):
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
-from .forms import SignUpForm, ProfileForm
+from .forms import SignUpForm
+from .models import Profile
+from django.shortcuts import render, redirect
+from django.contrib.auth import authenticate, login
+from django.contrib import messages
+from django.contrib.auth.models import User
+from .models import Profile
+from .forms import SignUpForm
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .forms import SignUpForm
 from .models import Profile
 
-def signup_view(request):
+def login_page(request):
     if request.method == 'POST':
         form = SignUpForm(request.POST)
         if form.is_valid():
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
-            user = authenticate(username=username, password=password)
-            if user is not None:
-                login(request, user)
+            profile_exists = Profile.check_profile(username, password)
+            if profile_exists:
+                profile = Profile.objects.get(username=username, password=password)
+                request.session['profile_id'] = profile.id
+                request.session.set_expiry(1800)  # Set session to expire in 30 minutes
+                context = {
+                  'profile': profile,
+                  }
                 messages.success(request, 'Connexion réussie ! Bienvenue sur votre profil.')
-                return redirect('profile')
+                return render(request, 'listings/profile.html', context)
             else:
                 messages.error(request, 'Échec de la connexion. Assurez-vous que vos identifiants sont corrects.')
         else:
@@ -1165,20 +1181,38 @@ def signup_view(request):
     
     return render(request, 'listings/signup.html', {'form': form})
 
-@login_required
-def profile(request):
-    try:
-        profile = request.user.profile
-    except Profile.DoesNotExist:
-        profile = None
-        # Optionally, create a profile for the user if it does not exist
-        # profile = Profile.objects.create(user=request.user)
-        messages.info(request, "Votre profil n'existe pas encore. Nous avons créé un profil pour vous.")
+    
 
-    context = {
-        'profile': profile,
-    }
-    return render(request, 'listings/profile.html', context)
+
+
+
+
+def profile_page(request):
+    profile_id = request.session.get('profile_id')
+    print(" i am inside of profie view ")
+    if profile_id:
+        profile = Profile.objects.get(id=profile_id)
+        context = {
+                'profile': profile,
+            }
+        return render(request, 'listings/profile.html', context)
+    else:
+        messages.info(request, "Erreur de session. Veuillez vous reconnecter.")
+        return render(request, 'listings/signup.html')
+
+from django.shortcuts import redirect
+from django.contrib import messages
+
+def logout_view(request):
+    # Clear the profile_id from the session to log the user out
+    if 'profile_id' in request.session:
+        del request.session['profile_id']
+        messages.success(request, 'Vous avez été déconnecté avec succès.')
+    else:
+        messages.info(request, 'Vous n\'êtes pas connecté.')
+
+    # Redirect the user to the login page or home page
+    return redirect('signup')  # Change 'signup' to your login or home view name if necessary
 
 
 

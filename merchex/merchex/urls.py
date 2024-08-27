@@ -5,8 +5,9 @@ from listings import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('signup/', views.signup_view, name='signup'),
-    path('profile/', views.profile, name='profile'),
+    path('login_page/', views.login_page, name='signup'),
+    path('profile_page/', views.profile_page, name='profile_page'),
+    path('logout_view/', views.logout_view, name='logout_view'),
     path('about-us/', views.about),
     path('dashboard/', views.statistiques,  name='dashboard'),
     path('listes/', views.tables, name='listes'),

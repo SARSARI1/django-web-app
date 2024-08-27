@@ -30,17 +30,27 @@ class UploadExcelForm(forms.Form):
 
 # lgoin forms.py
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm
 from .models import Profile
 
-class SignUpForm(AuthenticationForm):
-    username = forms.CharField(max_length=254)
-    password = forms.CharField(widget=forms.PasswordInput)
+class SignUpForm(forms.ModelForm):
+    # Add placeholders and class for styling
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'Entrez votre mot de passe', 
+            'class': 'form-control'
+        })
+    )
+    username = forms.CharField(
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Entrez votre nom d’utilisateur', 
+            'class': 'form-control'
+        })
+    )
 
-class ProfileForm(forms.ModelForm):
     class Meta:
         model = Profile
-        fields = ('bio', 'location', 'birth_date')
+        fields = ['username', 'password']
+
 
 class AgentForm(forms.ModelForm):
     class Meta:
