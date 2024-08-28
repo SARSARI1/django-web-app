@@ -57,7 +57,7 @@ urlpatterns = [
     
 
     ##################################################
-    path('libres/', views.ListsLibre, name='libres'),
+    path('libres/', views.libre_generated, name='libres'),
    path('libres_files/', views.filter_and_rank_agents, name='libres_files'),
     path('listlibre/', views.libre_generated, name='libre_generated'),
     path('download_excel/<str:ville>/<str:type_de_vue>/', views.download_excel_libre, name='download_excel_libre'),
