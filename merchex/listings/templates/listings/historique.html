@@ -24,6 +24,11 @@
   <link href="{% static 'listings/assets/css/nucleo-svg.css' %}" rel="stylesheet" />
   <!-- CSS Files -->
   <link id="pagestyle" href="{% static 'listings/assets/css/soft-ui-dashboard.css' %}"  rel="stylesheet" />
+  <style>
+    .hidden {
+      display: none;
+    }
+  </style>
 </head>
 
 <body class="g-sidenav-show  bg-gray-100">
@@ -265,40 +270,52 @@
                 {% endfor %}
             {% endif %}
           </div>
-          
+
+     
+          <div class=" mb-4"><h2>Historique</h2></div>
                         <!-- Button to trigger delete confirmation modal -->
-                        <div class="mb-3">
+             <div class="mb-1 d-flex justify-content-between align-items-center">
+              
+                <div class="mb-2 col-md-4">
+                <form action="{% url 'upload_excel_historique' %}" method="post" enctype="multipart/form-data">
+
+                          
+                  {% csrf_token %}
+                    
+                  <div class="mb-3">
+                      <label for="excel_file" class="form-label">Fichier Excel</label>
+                    
+                      <input type="file" name="excel_file" class="form-control" required>
+                     
+                    </div>
+                  <button type="submit" class="btn btn-primary">Télécharger</button>
+                 
+                </form>
+
+              </div>
+                        <div class="mb-2">
                             <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
-                                Supprimer toute la table
+                                Supprimer tous
                             </button>
                         </div>
+              </div>
 
                        <!-- Form to upload Excel file -->
                         
-                        <form action="{% url 'upload_excel_historique' %}" method="post" enctype="multipart/form-data">
-
-                          
-                          {% csrf_token %}
-                          <div class="mb-3">
-                              <label for="excel_file" class="form-label">Fichier Excel</label>
-                              <div class="alert alert-warning" role="alert">
-                                Les lignes précédentes de la table historique seront supprimées et les nouvelles seront insérées à partir du fichier Excel téléchargé.
-                              </div>
-                              <input type="file" name="excel_file" class="form-control" required>
-                          </div>
-                          <button type="submit" class="btn btn-primary">Télécharger</button>
-                        </form>
+                      
 
 
                         <!-- Search input -->
-                        <div class="mb-3 mt-4">
+                        <div class="mb-3 mt-1 col-md-3">
                           <label for="searchInput" class="form-label">Search </label>
                             <input type="text" id="searchInput" class="form-control" placeholder="Rechercher dans la table...">
                         </div>
 
                         <!-- Table to display Historique records -->
-                        <div class="table-container mt-4">
-                            <table class="table table-bordered table-hover align-items-center mb-0" id="historiqueTable">
+                        
+                      <div class="table-container">
+                        <div class="table-responsive p-0">
+                            <table class="table  align-items-center mb-0" id="historiqueTable">
                                 <thead>
                                     <tr>
                                         <th>Ville</th>
@@ -416,6 +433,7 @@
   <script src="{% static 'listings/assets/js/core/bootstrap.min.js' %}"></script>
   <script src="{% static 'listings/assets/js/plugins/perfect-scrollbar.min.js' %}"></script>
   <script src="{% static 'listings/assets/js/plugins/smooth-scrollbar.min.js' %}"></script>
+  <script src="{% static 'listings/assets/js/soft-ui-dashboard.min.js' %}"></script>
   <script>
     var win = navigator.platform.indexOf('Win') > -1;
     if (win && document.querySelector('#sidenav-scrollbar')) {
@@ -425,10 +443,7 @@
       Scrollbar.init(document.querySelector('#sidenav-scrollbar'), options);
     }
   </script>
-  <!-- Github buttons -->
-  <script async defer src="https://buttons.github.io/buttons.js"></script>
-  <!-- Control Center for Soft Dashboard: parallax effects, scripts for the example pages etc -->
-  <script src="{% static 'listings/assets/js/soft-ui-dashboard.min.js' %}"></script>
+  
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {

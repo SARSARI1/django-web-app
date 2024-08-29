@@ -1,4 +1,5 @@
 # ~/projects/django-web-app/merchex/listings/views.py
+from sqlite3 import OperationalError
 from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
@@ -209,13 +210,19 @@ def list_generated(request):
     data = DemandesTraiter.objects.values('ville', 'type_de_vue').distinct()
 
     # Group data by 'ville' and store unique 'type_de_vue' values
+
+
     grouped_data = defaultdict(set)
     for item in data:
         grouped_data[item['ville']].add(item['type_de_vue'])
 
+    
+
     # Convert set to list for rendering
     context = {
-        'data': {ville: list(types) for ville, types in grouped_data.items()}
+        'data': {ville: list(types) for ville, types in grouped_data.items()},
+        'demandes': DemandesTraiter.objects.all(),
+        'rejected_demandes': RejectedDemandesRetrait.objects.all(),
     }
 
     # If missing data exists, add it to the context and optionally clear the session
@@ -1163,6 +1170,8 @@ def login_page(request):
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
             profile_exists = Profile.check_profile(username, password)
+
+            
             if profile_exists:
                 profile = Profile.objects.get(username=username, password=password)
                 request.session['profile_id'] = profile.id
@@ -1367,6 +1376,9 @@ def statistiques(request):
         demandes_par_ville = list(Demande.objects.values('ville').annotate(count=Count('ville')))
 
         nbr_vue = Demande.objects.values('type_de_vue').distinct().count()
+        demande_libre=AgentsLibre.objects.count()
+        demande_bloc=DemandesTraiter.objects.count()
+        demandes_nbr=demande_libre+demande_bloc
 
         context = {
             'total_agents': total_agents,
@@ -1375,6 +1387,7 @@ def statistiques(request):
             'demandes_par_ville': json.dumps(demandes_par_ville),
             'nbr_vue': nbr_vue,
             'demandes': DemandesTraiter.objects.all(),
+            'total_demandes':demandes_nbr,
             'rejected_demandes': RejectedDemandesRetrait.objects.all(),  # Add this line
         }
 
@@ -1942,7 +1955,11 @@ def filter_and_rank_agents(request):
                 demandes_traiter_df['Age'] = demandes_traiter_df['Date Naissance'].apply(calculate_age)
                 print("second")
                 def calculate_sejour_count(matricule, historique_df):
-                    return len(historique_df[historique_df['Matricule'] == matricule])
+                    # Déterminer la date il y a 4 ans à partir d'aujourd'hui
+                    four_years_ago = datetime.now() - relativedelta(years=4)
+                    # Filtrer les séjours dans les 4 dernières années
+                    recent_hist = historique_df[(historique_df['Matricule'] == matricule) & (historique_df['Date debut sejour'] >= four_years_ago)]
+                    return len(recent_hist)
 
                 def calculate_last_sejour(matricule, historique_df):
                     agent_hist = historique_df[historique_df['Matricule'] == matricule]
@@ -2064,7 +2081,7 @@ def download_excel_libre(request, ville, type_de_vue):
         return response
 
     # Define columns of interest
-    columns_of_interest = ['numero_demande',  'matricule', 'nom_agent', 'prenom_agent','nombre_sejour','dernier_sejour', 'anciennete', date_embauche, 'age', 'nombre_enfants', 
+    columns_of_interest = ['numero_demande',  'matricule', 'nom_agent', 'prenom_agent','nombre_sejour','dernier_sejour', 'anciennete', 'date_embauche', 'age', 'nombre_enfants', 
                            'ville','type_de_vue','date_debut_sejour', 'date_fin_sejour']
     df = df[columns_of_interest]
 
@@ -2245,205 +2262,6 @@ def process_libres(request):
             messages.error(request, f"Une erreur est survenue : {str(e)}")
 
     return redirect('list_generated')  # Replace with the actual view name
-
-
-
-
-
-def upload_files_and_rank(request):
-    if request.method == 'POST':
-        form = UploadFilesForm(request.POST, request.FILES)
-        if form.is_valid():
-            agents_file = request.FILES.get('agents_file')
-            historique_file = request.FILES.get('historique_file')
-            demandes_file = request.FILES.get('demandes_file')
-
-            # Process the agents file
-            if agents_file:
-                if not agents_file.name.endswith('.xlsx'):
-                    messages.error(request, "Format de fichier invalide pour les agents. Veuillez télécharger un fichier .xlsx.")
-                else:
-                    try:
-                        df = pd.read_excel(agents_file)
-                        expected_columns = ['matricule', 'nom_prenom', 'date_naissance', 'sit_fam', 'date_embauche', 'nombre_enf', 'date_debut_retraite']
-                        df.columns = df.columns.str.lower()
-                        if not all(col in df.columns for col in expected_columns):
-                            messages.error(request, "Format de fichier Excel invalide pour les agents. Les colonnes attendues sont manquantes.")
-                        else:
-                            Agent.objects.all().delete()
-                            for index, row in df.iterrows():
-                                if pd.isnull(row['matricule']) or pd.isnull(row['nom_prenom']) or pd.isnull(row['date_naissance']):
-                                    messages.error(request, f"Données requises manquantes à la ligne {index + 1}.")
-                                    return redirect('AgentsAffichage')
-                                try:
-                                    agent = Agent(
-                                        matricule=row['matricule'],
-                                        nom_prenom=row['nom_prenom'],
-                                        date_naissance=row['date_naissance'] if not pd.isna(row['date_naissance']) else None,
-                                        sit_fam=row['sit_fam'],
-                                        date_embauche=row['date_embauche'] if not pd.isna(row['date_embauche']) else None,
-                                        nombre_enf=row['nombre_enf'],
-                                        date_debut_retraite=row.get('date_debut_retraite') if not pd.isna(row.get('date_debut_retraite')) else None
-                                    )
-                                    agent.save()
-                                except Exception as e:
-                                    messages.error(request, f"Erreur lors de l'enregistrement des données des agents : {str(e)}")
-                                    return redirect('AgentsAffichage')
-                            messages.success(request, "Fichier agents téléchargé et traité avec succès !")
-                    except Exception as e:
-                        messages.error(request, f"Erreur lors de la lecture du fichier Excel des agents : {str(e)}")
-                        return redirect('AgentsAffichage')
-
-            # Process the demandes file
-            if demandes_file:
-                try:
-                    df = pd.read_excel(demandes_file)
-                    required_columns = ['Ville', 'Nom agent', 'Prenom agent', 'Matricule', 'Date de la demande', 'Date debut sejour', 'Date fin sejour', 'Type de vue', 'Nombre de nuites', 'Statut', 'Nature Periode', 'Site', 'N° Demande']
-                    if not all(column in df.columns for column in required_columns):
-                        messages.error(request, f'Colonne manquante dans le fichier Excel des demandes.')
-                        return redirect('demande_list')
-                    Demande.objects.all().delete()
-                    for _, row in df.iterrows():
-                        Demande.objects.create(
-                            ville=row.get('Ville', ''),
-                            nom_agent=row.get('Nom agent', ''),
-                            prenom_agent=row.get('Prenom agent', ''),
-                            matricule=row.get('Matricule', ''),
-                            date_demande=row.get('Date de la demande'),
-                            date_debut_sejour=row.get('Date debut sejour'),
-                            date_fin_sejour=row.get('Date fin sejour'),
-                            type_de_vue=row.get('Type de vue', 'Inconnu'),
-                            nombre_nuites=row.get('Nombre de nuites', 0),
-                            statut=row.get('Statut', ''),
-                            nature_periode=row.get('Nature Periode', ''),
-                            site=row.get('Site', ''),
-                            numero_demande=row.get('N° Demande', '')
-                        )
-                    messages.success(request, 'Fichier demandes téléchargé et données insérées avec succès.')
-                except Exception as e:
-                    messages.error(request, f'Erreur lors du traitement du fichier Excel des demandes: {e}')
-                    return redirect('demande_list')
-
-            # Process the historique file
-            if historique_file:
-                if not historique_file.name.endswith('.xlsx'):
-                    messages.error(request, "Format de fichier invalide pour l'historique. Veuillez télécharger un fichier .xlsx.")
-                else:
-                    try:
-                        df = pd.read_excel(historique_file)
-                        required_columns = ['Site', 'Nom agent', 'Prenom agent', 'Matricule', 'Date de la demande', 'Date debut sejour', 'Date fin sejour', 'Type de vue', 'Nombre de nuites']
-                        if not all(column in df.columns for column in required_columns):
-                            messages.error(request, "Le fichier Excel de l'historique n'a pas les colonnes requises.")
-                            return redirect('historique')
-                        Historique.objects.all().delete()
-                        rows_with_missing_values = df[df[required_columns].isnull().any(axis=1)]
-                        df = df.dropna(subset=required_columns)
-                        inserted_rows = 0
-                        for _, row in df.iterrows():
-                            try:
-                                Historique.objects.create(
-                                    ville=row['Site'],
-                                    nom_agent=row['Nom agent'],
-                                    prenom_agent=row['Prenom agent'],
-                                    matricule=row['Matricule'],
-                                    date_demande=row['Date de la demande'],
-                                    date_debut_sejour=row['Date debut sejour'],
-                                    date_fin_sejour=row['Date fin sejour'],
-                                    type_de_vue=row['Type de vue'],
-                                    nombre_nuites=row['Nombre de nuites'],
-                                )
-                                inserted_rows += 1
-                            except Exception as e:
-                                messages.error(request, f"Erreur lors de l'insertion de la ligne {row}: {e}")
-                        if not rows_with_missing_values.empty:
-                            messages.warning(request, "Certaines lignes avaient des valeurs manquantes et n'ont pas été insérées.", extra_tags='missing-values')
-                        else:
-                            messages.success(request, f"Fichier Excel historique traité avec succès. {inserted_rows} lignes insérées.")
-                    except Exception as e:
-                        messages.error(request, f"Erreur lors de la lecture du fichier Excel de l'historique : {str(e)}")
-                        return redirect('historique')
-
-            # Perform filtering and ranking
-            if request.POST.get('filter_and_rank'):
-                try:
-                    date_debut_sejour = form.cleaned_data['date_debut_sejour']
-                    date_fin_sejour = form.cleaned_data['date_fin_sejour']
-
-                    demandes = Demande.objects.filter(
-                        date_debut_sejour__gte=date_debut_sejour,
-                        date_fin_sejour__lte=date_fin_sejour
-                    )
-
-                    historique_queryset = Historique.objects.all().values()
-                    agents_queryset = Agent.objects.all().values()
-                    demandes_queryset = Demande.objects.all().values()
-
-                    historique_df = pd.DataFrame(list(historique_queryset))
-                    agents_df = pd.DataFrame(list(agents_queryset))
-                    demandes_df = pd.DataFrame(list(demandes_queryset))
-
-                    historique_df.rename(columns={
-                        'ville': 'Ville',
-                        'nom_agent': 'Nom agent',
-                        'prenom_agent': 'Prenom agent',
-                        'matricule': 'Matricule',
-                        'date_demande': 'Date de la demande',
-                        'date_debut_sejour': 'Date debut sejour',
-                        'date_fin_sejour': 'Date fin sejour',
-                        'nombre_nuites': 'Nombre de nuites'
-                    }, inplace=True)
-
-                    agents_df.rename(columns={
-                        'matricule': 'Matricule',
-                        'nom_prenom': 'Nom Prenom',
-                        'date_naissance': 'Date Naissance',
-                        'date_embauche': 'Date Embauche',
-                        'nombre_enf': 'Nombre Enfants',
-                        'date_debut_retraite': 'Date Debut Retraite'
-                    }, inplace=True)
-
-                    demandes_df.rename(columns={
-                        'numero_demande': 'Numero Demande',
-                        'ville': 'Ville',
-                        'nom_agent': 'Nom agent',
-                        'prenom_agent': 'Prenom agent',
-                        'matricule': 'Matricule',
-                        'date_demande': 'Date de la demande',
-                        'date_debut_sejour': 'Date debut sejour',
-                        'date_fin_sejour': 'Date fin sejour',
-                        'type_de_vue': 'Type de vue',
-                        'nombre_nuites': 'Nombre de nuites',
-                        'statut': 'Statut',
-                        'nature_periode': 'Nature Periode',
-                        'site': 'Site'
-                    }, inplace=True)
-
-                    demandes_df = demandes_df[
-                        (demandes_df['Date debut sejour'] >= date_debut_sejour) &
-                        (demandes_df['Date fin sejour'] <= date_fin_sejour)
-                    ]
-
-                    demandes_traiter_df = demandes_df.copy()
-                    demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Site'] == 'Khouribga']
-                    demandes_traiter_df = demandes_traiter_df[demandes_traiter_df['Nature Periode'] == 'Bloquée']
-                    demandes_traiter_df = demandes_traiter_df.groupby('Nom agent')['Nombre de nuites'].sum().reset_index()
-                    demandes_traiter_df = demandes_traiter_df.sort_values(by='Nombre de nuites', ascending=False)
-
-                    messages.success(request, "Filtrage et classement effectués avec succès.")
-                    # Redirect or render the appropriate template with results
-                    return redirect('result_page')  # Replace 'result_page' with your result view name
-
-                except Exception as e:
-                    messages.error(request, f"Erreur lors du traitement des données : {str(e)}")
-                    return redirect('result_page')  # Replace 'result_page' with your result view name
-
-    else:
-        form = UploadFilesForm()
-
-    return render(request, 'upload_files.html', {'form': form})
-
-
-
 
 
 
@@ -2639,7 +2457,12 @@ def upload_rank(request):
                 demandes_traiter_df['Age'] = demandes_traiter_df['Date Naissance'].apply(calculate_age)
                 print("second")
                 def calculate_sejour_count(matricule, historique_df):
-                    return len(historique_df[historique_df['Matricule'] == matricule])
+                    # Déterminer la date il y a 4 ans à partir d'aujourd'hui
+                    four_years_ago = datetime.now() - relativedelta(years=4)
+                    # Filtrer les séjours dans les 4 dernières années
+                    recent_hist = historique_df[(historique_df['Matricule'] == matricule) & (historique_df['Date debut sejour'] >= four_years_ago)]
+                    return len(recent_hist)
+
 
                 def calculate_last_sejour(matricule, historique_df):
                     agent_hist = historique_df[historique_df['Matricule'] == matricule]
@@ -2720,23 +2543,21 @@ def download_pdf_demandes_libre(request):
     heading_style = styles['Heading2']
     body_style = styles['BodyText']
 
-    # Title
+    # Titre
     title = Paragraph("Liste des Demandes Traitées", title_style)
     elements.append(title)
-
-    # Table header
+    
+    # En-tête du tableau avec noms abrégés
     data = [
-        ["Numéro Demande", "Ville", "Matricule", "Date Début Séjour", "Date Fin Séjour", "Anciennete", 
-         "Nombre de séjour","Dernier séjour", "Age", "Nombre Enfants"]
+        ["N° Dem.", "Ville", "Matricule", "Début Séjour", "Fin Séjour", "Ancien.", 
+         "Séjours", "Dernier Séj.", "Âge", "Enfants"]
     ]
     
-    # Add data
+    # Ajouter les données
     for demande in demandes:
         data.append([
             demande.numero_demande,
             demande.ville,
-            #demande.nom_agent,
-            #demande.type_de_vue,
             demande.matricule,
             demande.date_debut_sejour.strftime("%d-%m-%Y"),
             demande.date_fin_sejour.strftime("%d-%m-%Y"),
@@ -2747,7 +2568,7 @@ def download_pdf_demandes_libre(request):
             demande.nombre_enfants
         ])
 
-    # Create table
+    # Créer le tableau
     table = Table(data)
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), '#d0d0d0'),
@@ -2761,13 +2582,14 @@ def download_pdf_demandes_libre(request):
     
     elements.append(table)
     
-    # Build PDF
+    # Construire le PDF
     doc.build(elements)
     buffer.seek(0)
     
     response = HttpResponse(buffer.read(), content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="demandes_traiter.pdf"'
     return response
+
 
 
 
@@ -2795,11 +2617,8 @@ def download_excel_demandes_libre(request):
     df = pd.DataFrame(list(demandes.values()))
 
     # Define columns of interest
-    columns_of_interest = [
-        'numero_demande', 'ville', 'matricule', 'date_debut_sejour', 
-        'date_fin_sejour', 'anciennete', 'nombre_sejour', 
-        'dernier_sejour', 'age', 'nombre_enfants'
-    ]
+    columns_of_interest = ['numero_demande',  'matricule', 'nom_agent', 'prenom_agent','nombre_sejour','dernier_sejour', 'anciennete', 'date_embauche', 'age', 'nombre_enfants', 
+                           'ville','type_de_vue','date_debut_sejour', 'date_fin_sejour']
     df = df[columns_of_interest]
 
     # Create a BytesIO buffer to hold the Excel data
@@ -2856,8 +2675,16 @@ def download_excel_rejected_demandes(request):
      return response
 
 
+from io import BytesIO
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+
+
 def download_pdf_libre(request, ville, type_de_vue):
-     # Récupérer les données du modèle AgentsLibre selon les critères
+    # Récupérer les données du modèle AgentsLibre selon les critères
     data = AgentsLibre.objects.filter(ville=ville, type_de_vue=type_de_vue).values()
     
     # Convertir les données en DataFrame
@@ -2866,13 +2693,21 @@ def download_pdf_libre(request, ville, type_de_vue):
     # Debug: Afficher les colonnes du DataFrame
     print("DataFrame columns:", df.columns.tolist())
     
-    # Colonnes d'intérêt
-    columns_of_interest = ['numero_demande', 'matricule',  'nombre_sejour', 
-                           'dernier_sejour', 'anciennete', 'age', 'nombre_enfants', 
-                            'date_debut_sejour', 'date_fin_sejour']
-
+    # Colonnes d'intérêt avec noms abrégés
+    columns_of_interest = {
+        'numero_demande': 'N° Demande',
+        'matricule': 'Matricule',
+        'nombre_sejour': 'Séjours',
+        'dernier_sejour': 'Dernier Séjour',
+        'anciennete': 'Ancienneté',
+        'age': 'Âge',
+        'nombre_enfants': 'Enfants',
+        'date_debut_sejour': 'Début Séjour',
+        'date_fin_sejour': 'Fin Séjour'
+    }
+    
     # Vérifier si toutes les colonnes existent dans le DataFrame
-    missing_cols = [col for col in columns_of_interest if col not in df.columns]
+    missing_cols = [col for col in columns_of_interest.keys() if col not in df.columns]
     if missing_cols:
         raise ValueError(f"Colonnes manquantes: {missing_cols}")
     
@@ -2895,7 +2730,7 @@ def download_pdf_libre(request, ville, type_de_vue):
     )
     normal_style = styles['Normal']
     normal_style.fontName = 'Helvetica'
-    normal_style.fontSize = 10
+    normal_style.fontSize = 8  # Taille réduite pour plus de contenu par ligne
 
     # Titre du document
     title_text = "Rapport des Agents Libres"
@@ -2903,27 +2738,27 @@ def download_pdf_libre(request, ville, type_de_vue):
     elements.append(title_paragraph)
     elements.append(Spacer(1, 12))
 
-    # Convertir le DataFrame en liste de listes pour la Table
-    table_data = [columns_of_interest] + df[columns_of_interest].values.tolist()
+    # Convertir le DataFrame en liste de listes pour la Table avec colonnes abrégées
+    table_data = [list(columns_of_interest.values())] + df[list(columns_of_interest.keys())].values.tolist()
 
     # Calculer les largeurs de colonnes basées sur le contenu
-    col_widths = [max(len(str(cell)) for cell in column) * 7 for column in zip(*table_data)]
-    col_widths = [min(width, 100) for width in col_widths]  # Limiter la largeur maximale à 100
+    col_widths = [max(len(str(cell)) for cell in column) * 6 for column in zip(*table_data)]
+    col_widths = [min(width, 90) for width in col_widths]  # Limiter la largeur maximale à 90
 
     # Créer la Table
     table = Table(table_data, colWidths=col_widths)
     
-    # Appliquer le style de la table
+    # Appliquer le style de la table avec l'enroulement du texte
     table_style = TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),  # Couleur de fond pour l'en-tête
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # Couleur du texte pour l'en-tête
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Style de police pour l'en-tête
-        ('FONTSIZE', (0, 0), (-1, 0), 10),  # Taille de la police pour l'en-tête
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),  # Taille réduite de la police pour l'en-tête
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
         ('BACKGROUND', (0, 1), (-1, -1), colors.whitesmoke),  # Couleur de fond pour les données
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),  # Taille de la police pour les données
+        ('FONTSIZE', (0, 0), (-1, -1), 7),  # Taille réduite de la police pour les données
         ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.black),
         ('BOX', (0, 0), (-1, -1), 0.25, colors.black),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -2946,6 +2781,8 @@ def download_pdf_libre(request, ville, type_de_vue):
     response['Content-Disposition'] = f'attachment; filename="{ville}_{type_de_vue}.pdf"'
     
     return response
+
+
 
 
 import pandas as pd
@@ -3006,12 +2843,24 @@ def affecter(request, ville, type_de_vue):
     "FFA500",  # Orange
     "FFC0CB",  # Rose
     "0000FF",  # Bleu
-    "8A2BE2",  # Bleu-violet
     "FFD700",  # Or
     "DC143C",  # Crème
     "4B0082",  # Indigo
     "7FFF00",  # Vert Chartreuse
     "FF4500",  # Rouge orange
+    "ADD8E6",  # Bleu clair
+    "F0E68C",  # Kaki clair
+    "E6E6FA",  # Lavande
+    "B0E0E6",  # Bleu Poudre
+    "D8BFD8",  # Thistle
+    "FFE4B5",  # Crème Melba
+    "FFB6C1",  # Rose clair
+    "AFEEEE",  # Bleu Paon clair
+    "F5DEB3",  # Blé
+    "FFFACD",  # Jaune clair citron
+    "FAFAD2",  # Jaune pâle doré
+    "E0FFFF",  # Cyan léger
+    "FFF0F5",  # Lavande Blush
 ]
 
             color_index = 0

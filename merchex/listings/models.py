@@ -135,7 +135,7 @@ class AgentsLibre(models.Model):
     anciennete = models.IntegerField()
     date_embauche = models.DateField(null=True, blank=True)
     nombre_sejour = models.IntegerField()
-    dernier_sejour = models.DateField()
+    dernier_sejour = models.DateField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.nom_agent} {self.prenom_agent} ({self.matricule})"

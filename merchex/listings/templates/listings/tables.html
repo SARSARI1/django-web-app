@@ -25,7 +25,10 @@
   <link href="{% static 'listings/assets/css/nucleo-svg.css' %}" rel="stylesheet" />
   <!-- CSS Files -->
   <link id="pagestyle" href="{% static 'listings/assets/css/soft-ui-dashboard.css' %}"  rel="stylesheet" />
- 
+
+  <link rel="stylesheet" href="https://unpkg.com/bootstrap-table@1.16.0/dist/bootstrap-table.min.css">
+  >
+  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap5.min.css">
 
 </head>
 
@@ -254,7 +257,7 @@
 
           
           <div class="card mb-4">
-            <div class="card-header pb-0">
+            <div class="card-header pb-0" style="background-color: #edf0f3;">
               <h1>Importez les fichiers Excel</h1>
             </div>
              <!-- Message Alerts -->
@@ -275,7 +278,7 @@
             {% endif %}
           </div>
           
-            <div class="card-body px-0 pt-0 pb-2">
+            <div class="card-body px-0 pt-0 pb-2" style="background-color: #edf0f3;">
               <div class="table-responsive p-0">
 
                 <div class="container mt-5">
@@ -455,7 +458,194 @@
 </div>
 
 
+<!-- Demandes Traiter Table -->
+<div class="col-lg-12 mb-lg-4 mb-4 mt-4">
+  <div class="card z-index-2">
+    <div class="card-header bg-gradient-primary text-white text-center py-3">
+      <h5 class="mb-0">Demandes Traiter</h5>
+    </div>
+    <div class="card-body p-3">
+      <div class="bg-white border-radius-lg py-3 pe-1 mb-3">
+        <div class="table-responsive">
+          <!-- Search Input -->
+          <input type="text" id="searchInput" onkeyup="searchTable()" placeholder="Rechercher..." class="form-control mb-3 border border-gray-300 rounded-md shadow-sm">
+          <!-- Delete All Button -->
+          <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllDemandesTraiterModal">
+            Supprimer Tout
+          </button>
+          <!-- Download PDF Button for Demandes Traiter -->
+          <div class="mb-3">
+           <!-- Button to download demandes_traiter.pdf -->
+          <a href="{% url 'download_pdf_demandes_traiter' %}" class="btn btn-primary">Télécharger PDF des Demandes Traitées</a>
+          <a href="{% url 'download_all_demandes_excel' %}" class="btn btn-primary">Télécharger Excel</a>
 
+          </div>
+        
+        
+        {% if not demandes %}
+            <p class="text-center text-muted">Aucune donnée à afficher</p>
+        {% else %}
+             <table class="table table-hover table-bordered border-gray-300 bg-white shadow-sm rounded data-table" id="demandesTraiterTable" data-toggle="table" table-striped  data-pagination="true">
+                <thead class="bg-gradient-secondary text-white text-uppercase text-center">
+                    <tr>
+                        <th class="px-4 py-2">Numéro de la demande</th>
+                        <th class="px-4 py-2">Ville</th>
+                        <th class="px-4 py-2">Nom de l'agent</th>
+                        <th class="px-4 py-2">Prénom de l'agent</th>
+                        <th class="px-4 py-2">Matricule</th>
+                        <th class="px-4 py-2">Date de début de séjour</th>
+                        <th class="px-4 py-2">Date de fin de séjour</th>
+                        <th class="px-4 py-2">Type de vue</th>
+                        <th class="px-4 py-2">A</th>
+                        <th class="px-4 py-2">D</th>
+                        <th class="px-4 py-2">S</th>
+                        <th class="px-4 py-2">P</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for demande in demandes %}
+                        <tr>
+                            <td class="text-sm px-4 py-2">{{ demande.numero_demande }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.ville }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.nom_agent }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.prenom_agent }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.matricule }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.date_debut_sejour }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.date_fin_sejour }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.type_de_vue }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.A }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.D }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.S }}</td>
+                            <td class="text-sm px-4 py-2">{{ demande.P }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+        
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Delete All Demandes Traiter -->
+<div class="modal fade" id="deleteAllDemandesTraiterModal" tabindex="-1" aria-labelledby="deleteAllDemandesTraiterModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteAllDemandesTraiterModalLabel">Confirmation de suppression</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Êtes-vous sûr de vouloir supprimer toutes les demandes traitées ?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <form action="{% url 'delete_all_demandes_traiter' %}" method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Supprimer</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Rejected Demandes Table -->
+<div class="col-lg-12 mb-lg-4 mb-4 mt-4">
+  <div class="card z-index-2">
+    <div class="card-header bg-gradient-danger text-white text-center py-3">
+      <h5 class="mb-0">Demandes Rejetées</h5>
+      
+    </div>
+    <div class="card-body p-3">
+      <div class="bg-white border-radius-lg py-3 pe-1 mb-3">
+        <div class="table-responsive">
+         <!-- Search Input -->
+<div class="mb-3 mt-4">
+  <label for="searchRejectedInput" class="form-label">Rechercher</label>
+  <input type="text" id="searchRejectedInput" onkeyup="searchRejectedTable()" class="form-control" placeholder="Rechercher dans la table...">
+
+  <!-- Delete All Button -->
+  <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllDemandesRejeteesModal">
+      Supprimer Tout
+  </button>
+  
+  <!-- Download PDF Button for Rejected Demandes -->
+  <div class="mb-3">
+      <!-- Button to download demandes_rejetees.pdf -->
+      <a href="{% url 'download_pdf_rejected_demandes' %}" class="btn btn-primary">Télécharger PDF des Demandes Rejetées</a>
+      
+      <!-- Button to download rejected_demandes.xlsx -->
+      <a href="{% url 'download_all_rejected_demandes_excel' %}" class="btn btn-success">Télécharger Excel des Demandes Rejetées</a>
+  </div>
+</div>
+
+<!-- Rejected Demandes Table -->
+{% if rejected_demandes %}
+  <table class="table table-hover table-bordered border border-gray-300 bg-white" id="rejectedDemandesTable">
+      <thead class="bg-gradient-secondary text-white text-uppercase text-center">
+          <tr>
+              <th class="px-4 py-2">Numéro de la demande</th>
+              <th class="px-4 py-2">Ville</th>
+              <th class="px-4 py-2">Nom de l'agent</th>
+              <th class="px-4 py-2">Prénom de l'agent</th>
+              <th class="px-4 py-2">Matricule</th>
+              <th class="px-4 py-2">Date de début de séjour</th>
+              <th class="px-4 py-2">Date de fin de séjour</th>
+              <th class="px-4 py-2">Type de vue</th>
+              <th class="px-4 py-2">Date de début de retraite</th>
+              <th class="px-4 py-2">Date de la demande</th>
+          </tr>
+      </thead>
+      <tbody>
+          {% for rejected in rejected_demandes %}
+          <tr>
+              <td class="text-sm px-4 py-2">{{ rejected.numero_demande }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.ville }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.nom_agent }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.prenom_agent }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.matricule }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.date_debut_sejour }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.date_fin_sejour }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.type_de_vue }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.date_debut_retraite }}</td>
+              <td class="text-sm px-4 py-2">{{ rejected.date_de_la_demande }}</td>
+          </tr>
+          {% endfor %}
+      </tbody>
+  </table>
+{% else %}
+  <p class="text-center text-muted">Aucune donnée à afficher</p>
+{% endif %}
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Delete All Rejected Demandes -->
+<div class="modal fade" id="deleteAllDemandesRejeteesModal" tabindex="-1" aria-labelledby="deleteAllDemandesRejeteesModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteAllDemandesRejeteesModalLabel">Confirmation de suppression</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Êtes-vous sûr de vouloir supprimer toutes les demandes rejetées ?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <form action="{% url 'delete_all_demandes_rejetees' %}" method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Supprimer</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
