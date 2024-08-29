@@ -10,7 +10,7 @@ urlpatterns = [
     path('logout_view/', views.logout_view, name='logout_view'),
     path('about-us/', views.about),
     path('dashboard/', views.statistiques,  name='dashboard'),
-    path('listes/', views.tables, name='listes'),
+    path('listes/', views.list_generated, name='listes'),
     path('historique/', views.historique, name='historique'),
     path('quota/',views.quota, name='quota'),
     path('tables/', views.upload_files, name='upload_files'),  # This should match the form action

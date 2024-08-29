@@ -30,7 +30,12 @@ def hello(request):
 # View for displaying tables.html
 def tables(request):
     # Your logic for this view
-    return render(request, 'listings/tables.html')
+    context = {
+        'data': {ville: list(types) for ville, types in grouped_data.items()},
+        'demandes': DemandesTraiter.objects.all(),
+        'rejected_demandes': RejectedDemandesRetrait.objects.all(),
+    }
+    return render(request, 'listings/tables.html', context)
 
 def dashboard(request):
     return render(request, 'listings/dashboard.html')
@@ -1317,12 +1322,7 @@ def upload_excel_agents(request):
             messages.error(request, "Format de fichier Excel invalide. Les colonnes attendues sont manquantes.")
             return redirect('AgentsAffichage')
 
-        # Delete all existing records from the Agent table
-        try:
-            Agent.objects.all().delete()
-        except Exception as e:
-            messages.error(request, f"Erreur lors de la suppression des anciens enregistrements : {str(e)}")
-            return redirect('AgentsAffichage')
+    
 
         for index, row in df.iterrows():
             if pd.isnull(row['matricule']) or pd.isnull(row['nom_prenom']) or pd.isnull(row['date_naissance']):
@@ -1375,7 +1375,7 @@ def statistiques(request):
         demandes_par_vue = list(Demande.objects.values('type_de_vue').annotate(count=Count('type_de_vue')))
         demandes_par_ville = list(Demande.objects.values('ville').annotate(count=Count('ville')))
 
-        nbr_vue = Demande.objects.values('type_de_vue').distinct().count()
+        nbr_vue = Quota.objects.values('type_de_vue').distinct().count()
         demande_libre=AgentsLibre.objects.count()
         demande_bloc=DemandesTraiter.objects.count()
         demandes_nbr=demande_libre+demande_bloc
@@ -1387,7 +1387,7 @@ def statistiques(request):
             'demandes_par_ville': json.dumps(demandes_par_ville),
             'nbr_vue': nbr_vue,
             'demandes': DemandesTraiter.objects.all(),
-            'total_demandes':demandes_nbr,
+            'nbr_demandes':demandes_nbr,
             'rejected_demandes': RejectedDemandesRetrait.objects.all(),  # Add this line
         }
 
@@ -1448,7 +1448,7 @@ def upload_excel_demandes(request):
                     return redirect('demande_list')
 
                 # Delete all existing records from the Demande table
-                Demande.objects.all().delete()
+                #Demande.objects.all().delete()
 
                 # Iterate over each row in the DataFrame and create Demande instances
                 for _, row in df.iterrows():
@@ -1610,7 +1610,7 @@ def delete_all_demandes_rejetees(request):
         messages.success(request, 'Toutes les demandes rejetées ont été supprimées avec succès.')
     except Exception as e:
         messages.error(request, f'Erreur lors de la suppression des demandes rejetées: {e}')
-    return redirect('dashboard')  # Redirect to the page displaying the statistics
+    return redirect('list_generated')  # Redirect to the page displaying the statistics
 
 from django.http import HttpResponse
 from reportlab.lib.pagesizes import letter
