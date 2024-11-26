@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Course Details: {{ course.title }}</title>
+</head>
+<body>
+    <h1>Course Details</h1>
+    <p><strong>Course Name:</strong> {{ course.title }}</p>
+    <p><strong>Department:</strong> {{ course.department.name|default:"No Department Assigned" }}</p>
+    <p><strong>Invoice Status:</strong> {{ course.invoice_status|default:"N/A" }}</p>
+    <p><strong>Course Manager Email:</strong> {{ course.course_manager_email|default:"N/A" }}</p>
+
+    <h2>Assigned Professors</h2>
+    <ul>
+        {% for course_professor in course_professors %}
+        <li>
+            {{ course_professor.professor.first_name }} {{ course_professor.professor.last_name }} 
+            (Assigned on: {{ course_professor.assignment_date|date:"Y-m-d H:i" }})
+        </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

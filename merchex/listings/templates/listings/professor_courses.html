@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Courses Assigned to {{ professor.first_name }} {{ professor.last_name }}</title>
+</head>
+<body>
+    <h1>Courses Assigned to {{ professor.first_name }} {{ professor.last_name }}</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Course Title</th>
+                <th>Course Department</th>
+                <th>Assigned On</th>
+                <th>Finish Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for course_professor in course_professors %}
+            <tr>
+                <td>{{ course_professor.course.title }}</td>
+                <td>{{ course_professor.course.department.name|default:"No Department Assigned" }}</td>
+                <td>{{ course_professor.assignment_date|date:"Y-m-d H:i" }}</td>
+                <td>{{ course_professor.finish_date|default:"N/A" }}</td>
+                <td>
+                    <a href="{% url 'professor_course_detail' professor.id course_professor.course.id %}">View Details</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

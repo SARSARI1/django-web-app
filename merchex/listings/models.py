@@ -1,142 +1,146 @@
 from django.db import models
 
-# Create your models here.
-# listings/models.py
-# listings/views.py
+# Department model
+class Department(models.Model):
+    name = models.TextField()
+    description = models.TextField(null=True, blank=True)
+    department_code = models.TextField(null=True, blank=True)
+    created_date = models.TextField(null=True, blank=True)
+    phone_number = models.TextField(null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+# GainedSkill model
+class GainedSkill(models.Model):
+    name = models.TextField()
+
+    def __str__(self):
+        return self.name
+
+
+# RequiredSkill model
+class RequiredSkill(models.Model):
+    name = models.TextField()
+
+    def __str__(self):
+        return self.name
+
+
+# Professor model
+class Professor(models.Model):
+    first_name = models.TextField()
+    last_name = models.TextField()
+    email = models.EmailField()
+    hire_date = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(null=True)
+    password = models.TextField()
+    birth_date = models.TextField(null=True, blank=True)
+    phone_number = models.TextField(null=True, blank=True)
+    salary = models.TextField(null=True, blank=True)
+    professor_number = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
 
 
 
-class Band(models.Model):
-    name = models.fields.CharField(max_length=100)
+# Course model
+class Course(models.Model):
+    title = models.TextField()
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+    is_completed = models.BooleanField(null=True)
+    course_manager_email = models.EmailField(null=True, blank=True)
+    client_company_name = models.TextField(null=True, blank=True)
+    contract_number = models.TextField(null=True, blank=True)
+    invoice_status = models.TextField(null=True, blank=True)
+    contract_start_date = models.DateField(null=True, blank=True)  # Change this to DateField
+    approval_status = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return self.title
 
 
-class DemandesTraiter(models.Model):
-    numero_demande = models.CharField(max_length=100)
-    ville = models.CharField(max_length=100)
-    nom_agent = models.CharField(max_length=100)
-    prenom_agent = models.CharField(max_length=100)
-    matricule = models.CharField(max_length=100)
-    date_debut_sejour = models.DateField()
-    date_fin_sejour = models.DateField()
-    type_de_vue = models.CharField(max_length=100)
-    A = models.IntegerField()
-    D = models.IntegerField()
-    S = models.IntegerField()
-    P = models.FloatField()
+
+# CourseGainedSkill model (Many-to-Many between Course and GainedSkill)
+class CourseGainedSkill(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    gained_skill = models.ForeignKey(GainedSkill, on_delete=models.CASCADE)
 
     class Meta:
-        ordering = ['-P']  # Order by 'P' in descending order
+        unique_together = ('course', 'gained_skill')
 
 
-class Quota(models.Model):
-    ville = models.CharField(max_length=100)
-    type_de_vue = models.CharField(max_length=100)
-    quota_value = models.IntegerField()
+# CourseProfessor model (Many-to-Many between Course and Professor with assignment dates)
+class CourseProfessor(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    professor = models.ForeignKey(Professor, on_delete=models.CASCADE)
+    assignment_date = models.DateTimeField()
+    finish_date = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        unique_together = ('ville', 'type_de_vue')  # Ensure unique combinations of ville and type_de_vue
-        ordering = ['ville', 'type_de_vue']
+        unique_together = ('course', 'professor', 'assignment_date')
 
-class RejectedDemandesRetrait(models.Model):
-    numero_demande = models.CharField(max_length=100)
-    ville = models.CharField(max_length=100)
-    nom_agent = models.CharField(max_length=100)
-    prenom_agent = models.CharField(max_length=100)
-    matricule = models.CharField(max_length=100)
-    date_debut_sejour = models.DateField()
-    date_fin_sejour = models.DateField()
-    type_de_vue = models.CharField(max_length=100)
-    date_debut_retraite = models.DateField()
-    date_de_la_demande = models.DateField()
 
-    def __str__(self):
-        return f"{self.numero_demande} - {self.nom_agent} {self.prenom_agent}"
+# CourseRequiredSkill model (Many-to-Many between Course and RequiredSkill)
+class CourseRequiredSkill(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    required_skill = models.ForeignKey(RequiredSkill, on_delete=models.CASCADE)
 
-class Historique(models.Model):
-    ville = models.CharField(max_length=255)
-    nom_agent = models.CharField(max_length=255)
-    prenom_agent = models.CharField(max_length=255)
-    matricule = models.CharField(max_length=50)
-    date_demande = models.DateField()
-    date_debut_sejour = models.DateField()
-    date_fin_sejour = models.DateField()
-    type_de_vue = models.CharField(max_length=255)
-    nombre_nuites = models.IntegerField()
+    class Meta:
+        unique_together = ('course', 'required_skill')
+
+
+
+
+# Dataset model
+class Dataset(models.Model):
+    school_department = models.CharField(max_length=255, null=True, blank=True)
+    course_title = models.CharField(max_length=255, null=True, blank=True)
+    date_and_time = models.DateTimeField(null=True, blank=True)
+    finish_time = models.DateTimeField(null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
+    required_skill = models.CharField(max_length=255, null=True, blank=True)
+    professors = models.CharField(max_length=255, null=True, blank=True)
+    gained_skill = models.CharField(max_length=355, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.ville} - {self.nom_agent} {self.prenom_agent}'
-
-class Agent(models.Model):
-    matricule = models.CharField(max_length=20)
-    nom_prenom = models.CharField(max_length=100)
-    date_naissance = models.DateField()
-    sit_fam = models.CharField(max_length=100)
-    date_embauche = models.DateField()
-    nombre_enf = models.IntegerField()
-    date_debut_retraite = models.DateField(null=True, blank=True) 
-
-    def __str__(self):
-        return self.nom_prenom
+        return f"Dataset for {self.course_title} - {self.school_department}"
 
 
 
-class Demande(models.Model):
-    numero_demande = models.CharField(max_length=255, default='DEFAULT_VALUE')
-    ville = models.CharField(max_length=255)
-    nom_agent = models.CharField(max_length=255)
-    prenom_agent = models.CharField(max_length=255)
-    matricule = models.CharField(max_length=50)
-    date_demande = models.DateField()
-    date_debut_sejour = models.DateField()
-    date_fin_sejour = models.DateField()
-    type_de_vue = models.CharField(max_length=255,default='Inconnu')
-    nombre_nuites = models.IntegerField()
-    statut = models.CharField(max_length=255, blank=True, null=True)
-    nature_periode = models.CharField(max_length=255, blank=True, null=True)
-    site = models.CharField(max_length=255, blank=True, null=True)
+
+
+# Dataset model
+class Dataset(models.Model):
+    school_department = models.CharField(max_length=255, null=True, blank=True)
+    course_title = models.CharField(max_length=255, null=True, blank=True)
+    date_and_time = models.DateTimeField(null=True, blank=True)
+    finish_time = models.DateTimeField(null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
+    required_skill = models.CharField(max_length=255, null=True, blank=True)
+    professors = models.CharField(max_length=255, null=True, blank=True)
+    gained_skill = models.CharField(max_length=355, null=True, blank=True)
+
+    def _str_(self):
+        return f"Dataset for {self.course_title} - {self.school_department}"
+
+
+
+class AdminProfile(models.Model):
+    admin_name = models.CharField(max_length=255)
+    email = models.EmailField()
+    password = models.CharField(max_length=255)  # For simplicity, we'll keep this as plain text, but should be hashed
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.nom_agent} {self.prenom_agent} ({self.matricule})"
+        return self.admin_name
+
+
+
+
+
+
     
-
-
-
-
-
-
-from django.db import models
-
-class Profile(models.Model):
-    username = models.CharField(max_length=128, default='user')
-    password = models.CharField(max_length=128, default='default_password')  # Consider hashing passwords in a real application
-    bio = models.TextField(blank=True)
-    location = models.CharField(max_length=100, blank=True)
-    birth_date = models.DateField(null=True, blank=True)
-
-    def __str__(self):
-        return self.username
-
-    @classmethod
-    def check_profile(cls, username, password):
-        return cls.objects.filter(username=username, password=password).exists()
-
-
-class AgentsLibre(models.Model):
-    numero_demande = models.CharField(max_length=100)
-    ville = models.CharField(max_length=100)
-    nom_agent = models.CharField(max_length=100)
-    prenom_agent = models.CharField(max_length=100)
-    matricule = models.CharField(max_length=100)
-    date_debut_sejour = models.DateField()
-    date_fin_sejour = models.DateField()
-    type_de_vue = models.CharField(max_length=100)
-    nombre_enfants = models.IntegerField()
-    age = models.IntegerField()
-    anciennete = models.IntegerField()
-    date_embauche = models.DateField(null=True, blank=True)
-    nombre_sejour = models.IntegerField()
-    dernier_sejour = models.DateField()
-
-    def __str__(self):
-        return f"{self.nom_agent} {self.prenom_agent} ({self.matricule})"
-

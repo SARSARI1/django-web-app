@@ -1,0 +1,86 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link rel="apple-touch-icon" sizes="76x76" href="{% static 'listings/assets/img/logo-ocp.png' %}" >
+  <link rel="icon" type="image/png" href="{% static 'listings/assets/img/logo-ocp.png' %}" >
+  <title>
+    MyOCP - Home
+  </title>
+  <!-- Fonts and icons -->
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700" rel="stylesheet" />
+  <link href="{% static 'listings/assets/css/nucleo-icons.css' %}" rel="stylesheet" />
+  <link href="{% static 'listings/assets/css/nucleo-svg.css' %}" rel="stylesheet" />
+  <script src="https://kit.fontawesome.com/42d5adcbca.js" crossorigin="anonymous"></script>
+  <link href="{% static 'listings/assets/css/soft-ui-dashboard.css' %}" rel="stylesheet" />
+</head>
+
+<body class="g-sidenav-show bg-gray-100">
+
+  <main class="main-content position-relative border-radius-lg">
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+      <div class="container-fluid">
+        <a class="navbar-brand text-primary font-weight-bold" href="#">
+          MyOCP
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <a class="nav-link active text-primary" href="#">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-muted" href="#">About</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-muted" href="#">Contact</a>
+            </li>
+            <li class="nav-item">
+              <a class="btn btn-primary text-white px-4 py-2 rounded-pill" href="#">Login</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid py-5">
+      <div class="row align-items-center">
+        <!-- Content Column -->
+        <div class="col-lg-6 col-md-8">
+          <h1 class="text-primary font-weight-bold mb-4">Welcome to MyOCP</h1>
+          <p class="text-muted mb-4">
+            Develop an innovative web application to automate the recommendation of academic resources in an optimal way using a Machine Learning clustering model. The application provides advanced features for resource management and statistical analysis to enhance administrators' decision-making processes while ensuring the integrity of the solution.
+          </p>
+          <a class="btn btn-primary btn-lg px-5 py-2 rounded-pill" href="#">Get Started</a>
+        </div>
+        <!-- Image Column -->
+        <div class="col-lg-6 col-md-4 d-none d-md-flex justify-content-center">
+          <img src="{% static 'listings/assets/img/logo-ocp.png' %}" class="img-fluid" alt="Platform Objectives">
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer pt-3 mt-5">
+      <div class="container-fluid">
+        <div class="row align-items-center justify-content-center">
+          <div class="col-12 text-center">
+            <div class="copyright text-muted">
+              © <script>
+                document.write(new Date().getFullYear())
+              </script>,
+              fait avec <i class="fa fa-heart text-danger"></i> à
+              <a href="https://www.creative-tim.com" class="font-weight-bold" target="_blank">OCP</a> Khouribga
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </main>
+</body>
+
+</html>
